@@ -506,7 +506,7 @@ class Boxes:
             self.ctx.restore()
             self.ctx.move_to(0, 0)
 
-    def getEntry(self, param, idx):
+    def getEntry(self, param, idx, default=None):
         """
         Get entry from list or items itself
 
@@ -514,11 +514,11 @@ class Boxes:
         :param idx: index in list
 
         """
-        if isinstance(param, list):
+        if hasattr(param, '__iter__'):
             if len(param) > idx:
                 return param[idx]
             else:
-                return None
+                return default
         else:
             return param
 
