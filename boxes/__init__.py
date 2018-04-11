@@ -289,12 +289,12 @@ class Boxes:
                 if default is None: default = 100.0
                 self.argparser.add_argument(
                     "--x", action="store", type=float, default=default,
-                    help="inner width in mm")
+                    help="inner width in mm (unless outside selected)")
             elif arg == "y":
                 if default is None: default = 100.0
                 self.argparser.add_argument(
                     "--y", action="store", type=float, default=default,
-                    help="inner depth in mm")
+                    help="inner depth in mm (unless outside selected)")
             elif arg == "sx":
                 if default is None: default = "50*3"
                 self.argparser.add_argument(
@@ -312,12 +312,12 @@ class Boxes:
                 if default is None: default = 100.0
                 self.argparser.add_argument(
                     "--h", action="store", type=float, default=default,
-                    help="inner height in mm")
+                    help="inner height in mm (unless outside selected)")
             elif arg == "hi":
                 if default is None: default = 0.0
                 self.argparser.add_argument(
                     "--hi", action="store", type=float, default=default,
-                    help="inner height of inner walls in mm (leave to zero for same as outer walls)")
+                    help="inner height of inner walls in mm (unless outside selected)(leave to zero for same as outer walls)")
             elif arg == "bottom_edge":
                 if default is None: default = "h"
                 self.argparser.add_argument(
@@ -463,7 +463,10 @@ class Boxes:
             walls += self.thickness
 
         try:
-            factor = (total - walls) / total
+            if total > 0.0:
+                factor = (total - walls) / total
+            else:
+                factor = 1.0
             return [s * factor for s in l]
         except TypeError:
             return l - walls
@@ -661,7 +664,7 @@ class Boxes:
                 else:
                     self.edge(arg)
 
-    def bedBoltHole(self, length, bedBoltSettings=None):
+    def bedBoltHole(self, length, bedBoltSettings=None, tabs=0):
         """
         Draw an edge with slot for a bed bolt
 
@@ -670,7 +673,7 @@ class Boxes:
 
         """
         d, d_nut, h_nut, l, l1 = bedBoltSettings or self.bedBoltSettings
-        self.edge((length - d) / 2.0)
+        self.edge((length - d) / 2.0, tabs=tabs//2)
         self.corner(90)
         self.edge(l1)
         self.corner(90)
@@ -694,7 +697,7 @@ class Boxes:
         self.corner(90)
         self.edge(l1)
         self.corner(90)
-        self.edge((length - d) / 2.0)
+        self.edge((length - d) / 2.0, tabs=tabs-(tabs//2))
 
     def edgeCorner(self, edge1, edge2, angle=90):
         """Make a corner between two Edges. Take width of edges into account"""
@@ -1539,6 +1542,58 @@ class Boxes:
 
         self.move(overallwidth, overallheight, move)
 
+    def flangedWall(self, x, y, edges="FFFF", flanges=None, r=0.0,
+               callback=None, move=None):
+        """Rectangular wall with flanges extending the regular size
+
+        This is similar to the rectangularWall but it may extend to either side
+        replacing the F edge with fingerHoles. Use with E and F for edges only.
+        :param x: width
+        :param y: height
+        :param edges:  (Default value = "FFFF") bottom, right, top, left
+        :param flanges: (Default value = None) list of width of the flanges
+        :param r: radius of the corners of the flange
+        :param callback:  (Default value = None)
+        :param move:  (Default value = None)
+        """
+
+        t = self.thickness
+
+        if not flanges:
+            flanges = [0.0] * 4
+
+        while len(flanges) < 4:
+            flanges.append(0.0)
+
+        flanges = flanges + flanges # double to allow looping around
+
+        tw = x + 2*t + flanges[1] + flanges[3]
+        th = y + 2*t + flanges[0] + flanges[2]
+
+        if self.move(tw, th, move, True):
+            return
+
+        rl = min(r, max(flanges[-1], flanges[0]))
+        self.moveTo(rl)
+
+        for i in range(4):
+            l = y if i % 2 else x
+
+            rl = min(r, max(flanges[i-1], flanges[i]))
+            rr = min(r, max(flanges[i], flanges[i+1]))
+            self.cc(callback, i, x=-rl)
+            if flanges[i]:
+                if edges[i] == "F":
+                    self.fingerHolesAt(flanges[i-1]+t-rl, 0.5*t+flanges[i], l,
+                                       angle=0)
+                self.edge(l+flanges[i-1]+flanges[i+1]+2*t-rl-rr)
+            else:
+                self.edge(flanges[i-1]+t-rl)
+                self.edges.get(edges[i], edges[i])(l)
+                self.edge(flanges[i+1]+t-rr)
+            self.corner(90, rr)
+        self.move(tw, th, move)
+
     def rectangularTriangle(self, x, y, edges="eee", r=0.0, num=1,
                         bedBolts=None, bedBoltSettings=None,
                         callback=None,
@@ -1579,6 +1634,9 @@ class Boxes:
         if self.move(overallwidth, overallheight, move, before=True):
             return
 
+        if self.debug:
+            self.rectangularHole(width/2., height/2., width, height)
+
         if num > 1:
             self.moveTo(self.spacing + edges[-1].spacing())
 
@@ -1603,9 +1661,9 @@ class Boxes:
             self.ctx.stroke()
 
             if n % 2:
-                self.moveTo(-edges[1].spacing()-2*self.spacing-edges[-1].spacing(), height-edges[1].spacing(), 180)
+                self.moveTo(-edges[1].spacing()-2*self.spacing-edges[-1].spacing(), height-edges[0].spacing(), 180)
             else:
-                self.moveTo(width+1*edges[1].spacing()-self.spacing-2*edges[-1].spacing(), height-edges[1].spacing(), 180)
+                self.moveTo(width+1*edges[1].spacing()-self.spacing-2*edges[-1].spacing(), height-edges[0].spacing(), 180)
 
 
         self.move(overallwidth, overallheight, move)

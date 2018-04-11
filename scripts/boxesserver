@@ -146,12 +146,14 @@ class BServer:
 """
 
     def args2html(self, name, box, action=""):
-        result = ["""<html><head><title>Boxes - """, name, """</title>
+        result = ["""<!DOCTYPE html>
+<html>
+<head>
+    <title>Boxes - """, name, """</title>
     <link rel="stylesheet" href="https://necolas.github.io/normalize.css/4.1.1/normalize.css" type="text/css" />
     <link rel="stylesheet" href="static/self.css" type="text/css" />
 """, self.scripts % (len(box.argparser._action_groups)-3), """
-    <script>
-   </script>
+   <meta name="flattr:id" content="456799">
 </head>
 <body onload="hideargs()">
 
@@ -161,12 +163,12 @@ class BServer:
 <a href="./"><h1>Boxes.py</h1></a>
 </div>
 <div style="width: 150px; float: right;">
-<img alt="self-Logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Gray_shaded_3D_cube.svg/2000px-Gray_shaded_3D_cube.svg.png" width="150px" >
+<img alt="self-Logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Gray_shaded_3D_cube.svg/2000px-Gray_shaded_3D_cube.svg.png" width="150" >
 </div>
 <div>
 <div class="clear"></div>
 <hr />
-<h2 style="margin: 0px 0px 0px 20px;" ><span>""", name, """</h2>
+<h2 style="margin: 0px 0px 0px 20px;" >""", name, """</h2>
         <p>""", box.__doc__ or "", """</p>
 <form action="%s" method="GET" target="_blank">
         """ % (action)]
@@ -190,7 +192,7 @@ class BServer:
 <!--
 <div style="width: 5%; float: left;"></div>
 <div style="width: 35%; float: left;">
-<img alt="sample" src="examples/box.svg" width="300px" >
+<img alt="sample" src="examples/box.svg" width="300" >
 <span id="sicherheitshinweise">hier kommt dann der AJAX-Inhalt</span>
 </div>
 -->
@@ -201,7 +203,6 @@ class BServer:
             result.append(markdown.markdown(box.description))
         result.append("""
 </div>
-</div>
 
 <div class="footer container">
 <ul>
@@ -211,9 +212,6 @@ class BServer:
 </ul>
 </div>
 
-
-
-
 </body>
 </html>
         """ )
@@ -221,8 +219,10 @@ class BServer:
         
     def menu(self):
         
-        result = ["""<html>
-<head><title>Boxes.py</title>
+        result = ["""<!DOCTYPE html>
+<html>
+<head>
+    <title>Boxes.py</title>
     <link rel="stylesheet" href="https://necolas.github.io/normalize.css/4.1.1/normalize.css" type="text/css" />
     <link rel="stylesheet" href="static/self.css" type="text/css" />
     <script>
@@ -236,6 +236,7 @@ class BServer:
 	  document.getElementById("sample-" + group).style.height= "0px";
 	}
         </script>""", self.scripts % len(self.groups), """
+     <meta name="flattr:id" content="456799">
 </head>
 <body onload="hideargs()">
 <div class="container" style="background-color: #FFF8EA;">
@@ -252,7 +253,7 @@ Create boxes and more with a laser cutter!
 
 </div>
 <div style="width: 30%; float: left;">
-<img alt="self-Logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Gray_shaded_3D_cube.svg/2000px-Gray_shaded_3D_cube.svg.png" width="300px" >
+<img alt="self-Logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Gray_shaded_3D_cube.svg/2000px-Gray_shaded_3D_cube.svg.png" width="300" >
 </div>
 <div>
 <div class="clear"></div>
@@ -260,11 +261,11 @@ Create boxes and more with a laser cutter!
 <div style="width: 100%">
 """ ]
         for nr, group in enumerate(self.groups):
-            result.append('''<h3 onclick="showHide('%s')">%s</h3>\n<div id="%s">\n<ul>\n''' % (nr, group.title, nr))
+            result.append('''<h3 onclick="showHide('%s')">%s</h3>\n<div id="%s">\n''' % (nr, group.title, nr))
             result.append("""
             <div style="width: 20%%; float: right;">
-            <img width="100%%" id="sample-%s" src="static/nothing.png" alt="" />
-            </div>""" % (group))
+            <img style="width: 100%%;" id="sample-%s" src="static/nothing.png" alt="" />
+            </div>\n<ul>\n""" % (group.name))
             for box in group.generators:
                 name = box.__class__.__name__
                 if name in ("TrayLayout2", ):
@@ -273,7 +274,7 @@ Create boxes and more with a laser cutter!
                 if box.__doc__:
                     docs = " - " + box.__doc__
                 result.append("""  <li onmouseenter="change('%s', 'static/samples/%s.jpg')" onmouseleave="changeback('%s')"><a href="%s">%s</a>%s</li>\n""" % (
-                    group, name, group, name, name, docs))
+                    group.name, name, group.name, name, name, docs))
             result.append("</ul>\n</div>\n")
         result.append("""
 </div>
@@ -285,17 +286,12 @@ Create boxes and more with a laser cutter!
 </div>
 
 <div class="footer container">
-
-
-
 <ul>
  <li><a href="https://github.com/florianfesti/boxes">Get Source at GitHub</a></li>
  <li><a href="http://florianfesti.github.io/boxes/html/index.html">Documentation and API Description</a></li>
  <li><a href="https://hackaday.io/project/10649-boxespy">Hackaday.io Project Page</a></li>
 </ul>
-
 </div>
-
  
 </body>
 </html>
@@ -305,8 +301,12 @@ Create boxes and more with a laser cutter!
 
     def errorMessage(self, name, e):
         return [
-            b"""<html><head><title>Error generating""", name.encode(),
-            b"""</title><head>
+            b"""<html>
+<head>
+  <title>Error generating""", name.encode(),
+            b"""</title>
+  <meta name="flattr:id" content="456799">
+</head>
 <body>
 <h1>An error occurred!</h1>
 <p>""", str(e).encode(), b"""</p>
@@ -352,7 +352,7 @@ Create boxes and more with a laser cutter!
         args = ["--"+unquote_plus(arg) for arg in environ['QUERY_STRING'].split("&")]
         if "--render=1" not in args:
             start_response(status, headers)
-            return self.args2html(name, box)
+            return self.args2html(name, box, "./" + name)
         else:
             args = [a for a in args if a != "--render=1"]
             try:

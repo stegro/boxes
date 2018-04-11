@@ -306,10 +306,12 @@ class Edge(BaseEdge):
                 for i in range(bedBolts.bolts):
                     self.hole(0.5 * interval_length,
                               0.5 * self.thickness, 0.5 * d)
-                    self.edge(interval_length, tabs=2)
+                    self.edge(interval_length, tabs=
+                              (i == 0 or i == bedBolts.bolts - 1))
             else:
                 for i in range(bedBolts.bolts):
-                    self.bedBoltHole(interval_length, bedBoltSettings)
+                    self.bedBoltHole(interval_length, bedBoltSettings, tabs=
+                                     (i == 0 or i == bedBolts.bolts - 1))
         else:
             self.edge(length, tabs=2)
 
@@ -717,7 +719,7 @@ class FingerHoleEdge(BaseEdge):
         return self.fingerHoles.settings.edge_width + self.settings.thickness
 
 
-class CrossingFingerHoleEdge(BaseEdge):
+class CrossingFingerHoleEdge(Edge):
     """Edge with holes for finger joints 90° above"""
 
     description = "Edge (orthogonal Finger Joint Holes)"
@@ -1372,7 +1374,7 @@ Inherited:
 
     absolute_params.update( {
         "second_pin": True,
-        "spring": ("both", "none", "left", "right", "both"),
+        "spring": ("both", "none", "left", "right"),
         } )
 
     def edgeObjects(self, boxes, chars=None, add=True):

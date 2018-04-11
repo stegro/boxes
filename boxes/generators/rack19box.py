@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2013-2017 Florian Festi
+# Copyright (C) 2013-2018 Florian Festi
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -17,15 +17,21 @@
 from boxes import *
 
 
-class ElectronicsBox(Boxes):
-    """Closed box with screw on top and mounting holes"""
+class Rack19Box(Boxes):
+    """Closed box with screw on top for mounting in a 19" rack."""
 
     ui_group = "Box"
 
     def __init__(self):
         Boxes.__init__(self)
-        self.addSettingsArgs(edges.FingerJointSettings)
-        self.buildArgParser("x", "y", "h", "outside")
+        self.addSettingsArgs(edges.FingerJointSettings, surroundingspaces=0.5)
+        self.argparser.add_argument(
+            "--depth", action="store", type=float, default=100.,
+            help="inner depth in mm")
+        self.argparser.add_argument(
+            "--height", action="store", type=int, default=2,
+            choices=list(range(1, 17)),
+            help="height in rack units")
         self.argparser.add_argument(
             "--triangle", action="store", type=float, default=25.,
             help="Sides of the triangles holding the lid in mm")
@@ -35,57 +41,48 @@ class ElectronicsBox(Boxes):
         self.argparser.add_argument(
             "--d2", action="store", type=float, default=3.,
             help="Diameter of the lid screw holes in mm")
-        self.argparser.add_argument(
-            "--d3", action="store", type=float, default=3.,
-            help="Diameter of the mounting screw holes in mm")
-        self.argparser.add_argument(
-            "--outsidemounts", action="store", type=boolarg, default=True,
-            help="Add external mounting points")
-        self.argparser.add_argument(
-            "--holedist", action="store", type=float, default=7.,
-            help="Distance of the screw holes from the wall in mm")
 
     def wallxCB(self):
         t = self.thickness
         self.fingerHolesAt(0, self.h-1.5*t, self.triangle, 0)
         self.fingerHolesAt(self.x, self.h-1.5*t, self.triangle, 180)
         
+    def wallxfCB(self): # front
+        t = self.thickness
+        for x in (8.5, self.x+2*17.+2*t-8.5):
+            for y in (6., self.h-6.+t):
+                self.rectangularHole(x, y, 10, 6.5, r=3.25)
+        
+        self.moveTo(t+17., t)
+        self.wallxCB()
+        
     def wallyCB(self):
         t = self.thickness
         self.fingerHolesAt(0, self.h-1.5*t, self.triangle, 0)
         self.fingerHolesAt(self.y, self.h-1.5*t, self.triangle, 180)
         
+        
     def render(self):
         self.open()
 
         t = self.thickness
-        self.h = h = self.h + 2*t # compensate for lid
-        x, y, h = self.x, self.y, self.h
-        d1, d2, d3 =self.d1, self.d2, self.d3
-        hd = self.holedist
+        self.h = h = self.height * 44.45 - 0.787 - t
+        x = self.x = 448.0 - 2*t
+        y = self.y = self.depth
+
+        d1, d2 =self.d1, self.d2
         tr = self.triangle
         trh = tr / 3.
-        
-        if self.outside:
-            self.x = x = self.adjustSize(x)
-            self.y = y = self.adjustSize(y)
-            self.h = h = h - 3*t
 
+        self.rectangularWall(y, h, "ffef", callback=[self.wallyCB], move="right")
         self.rectangularWall(x, h, "fFeF", callback=[self.wallxCB],
-                             move="right")
-        self.rectangularWall(y, h, "ffef", callback=[self.wallyCB], move="up")
-        self.rectangularWall(y, h, "ffef", callback=[self.wallyCB])
-        self.rectangularWall(x, h, "fFeF", callback=[self.wallxCB],
+                             move="up")
+        self.flangedWall(x, h, "FFeF", callback=[self.wallxfCB], r=t,
+                         flanges=[0., 17., -t, 17.])
+        self.rectangularWall(y, h, "ffef", callback=[self.wallyCB],
                              move="left up")
 
-        if not self.outsidemounts:
-            self.rectangularWall(x, y, "FFFF", callback=[
-            lambda:self.hole(hd, hd, d=d3)] *4, move="right")
-        else:
-            self.flangedWall(x, y, edges="FFFF",
-                             flanges=[0.0, 2*hd, 0., 2*hd], r=hd,
-                             callback=[
-                    lambda:self.hole(hd, hd, d=d2)] * 4, move='up')
+        self.rectangularWall(x, y, "fFFF", move="right")
         self.rectangularWall(x, y, callback=[
             lambda:self.hole(trh, trh, d=d2)] * 4, move='up')
 
@@ -93,5 +90,3 @@ class ElectronicsBox(Boxes):
             callback=[None, lambda: self.hole(trh, trh, d=d1)])
 
         self.close()
-
-
