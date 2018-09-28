@@ -26,7 +26,7 @@ class DisplayShelf(Boxes): # change class name here and below
 
         self.addSettingsArgs(edges.FingerJointSettings)
 
-        self.buildArgParser("x", "y", "h", "outside")
+        self.buildArgParser(x=400, y=100, h=300, outside=True)
         self.argparser.add_argument(
             "--num",  action="store", type=int, default=3,
             help="number of shelves")
@@ -72,9 +72,13 @@ class DisplayShelf(Boxes): # change class name here and below
         self.rectangularWall(y, h, callback=[self.side], move="up")
         self.rectangularWall(y, h, callback=[self.side], move="up")
 
-        for i in range(self.num):
-            self.rectangularWall(x, sl, "ffef", move="up")
-            self.rectangularWall(x, f, "Ffef", move="up")
+        if f:
+            for i in range(self.num):
+                self.rectangularWall(x, sl, "ffef", move="up")
+                self.rectangularWall(x, f, "Ffef", move="up")
+        else:
+            for i in range(self.num):
+                self.rectangularWall(x, sl, "Efef", move="up")
 
         self.close()
 

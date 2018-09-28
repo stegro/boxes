@@ -159,6 +159,8 @@ def argparseSections(s):
 
 
 class ArgparseEdgeType:
+    """argparse type to select from a set of edge types"""
+
     names = edges.getDescriptions()
     edges = []
 
@@ -196,6 +198,8 @@ class BoolArg:
         return True
 
     def html(self, name, default):
+        if isinstance(default, (str)):
+            default = self(default)
         return """<input name="%s" type="hidden" value="0">
 <input name="%s" type="checkbox" value="1"%s>""" % \
             (name, name, ' checked="checked"' if default else "")
@@ -238,13 +242,13 @@ class Boxes:
             help="format of resulting file")
         defaultgroup.add_argument(
             "--tabs", action="store", type=float, default=0.0,
-            help="width of tabs holding th parts in place (not supported everywhere)")
+            help="width of tabs holding th parts in place in mm (not supported everywhere)")
         defaultgroup.add_argument(
             "--debug", action="store", type=boolarg, default=False,
             help="print surrounding boxes for some structures")
         defaultgroup.add_argument(
             "--reference", action="store", type=float, default=100,
-            help="print reference rectangle with given length")
+            help="print reference rectangle with given length (zero to disable)")
         defaultgroup.add_argument(
             "--burn", action="store", type=float, default=0.1,
             help="burn correction in mm (bigger values for tighter fit)")
@@ -260,7 +264,7 @@ class Boxes:
         self.bedBoltSettings = (3, 5.5, 2, 20, 15)  # d, d_nut, h_nut, l, l1
         self.hexHolesSettings = (5, 3, 'circle')  # r, dist, style
         self.surface, self.ctx = self.formats.getSurface(self.format, self.output)
-        self.ctx.set_line_width(2 * self.burn)
+        self.ctx.set_line_width(max(2 * self.burn, 0.05))
         self.ctx.select_font_face("sans-serif")
         self._buildObjects()
         if self.reference:
@@ -277,10 +281,18 @@ class Boxes:
 
     def buildArgParser(self, *l, **kw):
         """
-        Add commonly used commandf line parameters
+        Add commonly used arguments
 
         :param \*l: parameter names
+        :param \*\*kw: parameters with new default values
 
+        Supported parameters are
+
+        * floats: x, y, h, hi
+        * argparseSections: sx, sy
+        * ArgparseEdgeType: bottom_edge, top_edge
+        * boolarg: outside
+        * str (selection): nema_mount
         """
         for arg in l:
             kw[arg] = None
@@ -329,7 +341,7 @@ class Boxes:
                 if default is None: default = "e"
                 self.argparser.add_argument(
                     "--top_edge", action="store",
-                    type=ArgparseEdgeType("ecESikvfL"), choices=list("ecESikvfL"),
+                    type=ArgparseEdgeType("efFcESikvfL"), choices=list("efFcESikvfL"),
                     default=default, help="edge type for top edge")
             elif arg == "outside":
                 if default is None: default = True
@@ -572,7 +584,7 @@ class Boxes:
             lang = math.degrees(l / r_)
             if degrees < 0:
                 lang = -lang
-            print(degrees, radius, l, lang, tabs, math.degrees(tabrad))
+            #print(degrees, radius, l, lang, tabs, math.degrees(tabrad))
             self.corner(lang/2., radius)
             for i in range(tabs-1):
                 self.moveArc(math.degrees(tabrad), r_)
@@ -1026,7 +1038,7 @@ class Boxes:
         :param r:  (Default value = 0) radius of the corners
 
         """
-        self.moveTo(x + r - dx / 2.0, y - dy / 2.0, 180)
+        self.moveTo(x + r - dx / 2.0, y - dy / 2.0 + self.burn, 180)
         for d in (dy, dx, dy, dx):
             self.corner(-90, r)
             self.edge(d - 2 * r)
@@ -1052,7 +1064,31 @@ class Boxes:
         self.edge(2*r*math.sin(math.radians(a)))
 
     @restore
-    def text(self, text, x=0, y=0, angle=0, align=""):
+    @holeCol
+    def flatHole(self, x, y, r=None, d=None, w=None, rel_w=0.75, angle=0):
+        if r is None:
+            r = d / 2.0
+        if w is None:
+            w = r * rel_w
+        else:
+            w = w / 2.0
+
+        if r < 0.0:
+            return
+        if abs(w) > r:
+            return self.hole(x, y, r)
+
+        a = math.degrees(math.acos(w / r))
+        self.moveTo(x, y, angle-a)
+        self.moveTo(r-self.burn, 0, -90)
+        for i in range(2):
+            self.corner(-180+2*a, r)
+            self.corner(-a)
+            self.edge(2*r*math.sin(math.radians(a)))
+            self.corner(-a)
+
+    @restore
+    def text(self, text, x=0, y=0, angle=0, align="", fontsize=10, color=[0.0, 0.0, 0.0]):
         """
         Draw text
 
@@ -1063,12 +1099,12 @@ class Boxes:
         :param align:  (Default value = "") string with combinations of (top|middle|bottom) and (left|center|right) separated by a space
 
         """
+        self.ctx.set_font_size(fontsize)
         self.moveTo(x, y, angle)
         text = text.split("\n")
         width = lheight = 0.0
         for line in text:
             (tx, ty, w, h, dx, dy) = self.ctx.text_extents(line)
-            print(tx, ty, w, h, dx, dy)
             lheight = max(lheight, h)
             width = max(width, w)
 
@@ -1093,12 +1129,13 @@ class Boxes:
         self.ctx.set_source_rgb(1.0, 1.0, 1.0)
         self.ctx.rectangle(0, 0, width, height)
         self.ctx.stroke()
-        self.ctx.set_source_rgb(0.0, 0.0, 0.0)
+        self.ctx.set_source_rgb(*color)
         self.ctx.scale(1, -1)
         for line in reversed(text):
             self.ctx.show_text(line)
             self.moveTo(0, 1.4 * -lheight)
-
+        self.ctx.set_source_rgb(0.0, 0.0, 0.0)
+        self.ctx.set_font_size(10)
 
     tx_sizes = {
         1 : 0.61,
@@ -1129,6 +1166,13 @@ class Boxes:
     @restore
     @holeCol
     def TX(self, size, x=0, y=0, angle=0):
+        """Draw a star pattern
+
+        :param size: 1 to 100
+        :param x: (Default value = 0)
+        :param y: (Default value = 0)
+        :param angle: (Default value = 0)
+        """
         self.moveTo(x, y, angle)
 
         size = self.tx_sizes.get(size, 0)
@@ -1302,6 +1346,13 @@ class Boxes:
                 self.hole(j * 2 * w + i * w, -i * 2 * dist, r)
 
     def flex2D(self, x, y, width=1):
+        """
+        Fill a rectangle with a pattern allowing bending in both axis
+
+        :param x: width
+        :param y: height
+        :param width: width between the lines of the pattern in multiples of thickness
+        """
         width *= self.thickness
         cx = int(x // (5 * width))
         wx = x / 5. / cx
@@ -1336,15 +1387,26 @@ class Boxes:
     ### parts
     ##################################################
 
+    def _splitWall(self, pieces, side):
+        """helper for roundedPlate and surroundingWall
+        figures out what sides to split
+        """
+        return [
+            (False, False, False, False, True),
+            (True, False, False, False, True),
+            (True, False, True, False, True),
+            (True, True, True, False, True),
+            (True, True, True, True, True),
+        ][pieces][side]
+
     def roundedPlate(self, x, y, r, edge="f", callback=None,
                      holesMargin=None, holesSettings=None,
                      bedBolts=None, bedBoltSettings=None,
+                     wallpieces=1,
                      move=None):
         """Plate with rounded corner fitting to .surroundingWall()
 
-        First edge is split to have a joint in the middle of the side
-        callback is called at the beginning of the straight edges
-        0, 1 for the two part of the first edge, 2, 3, 4 for the others
+        For the callbacks the sides are counted depending on wallpieces
 
         :param x: width
         :param y: hight
@@ -1354,6 +1416,7 @@ class Boxes:
         :param holesSettings:  (Default value = None)
         :param bedBolts:  (Default value = None)
         :param bedBoltSettings:  (Default value = None)
+        :param wallpieces: (Default value = 1) # of separate surrounding walls
         :param move:  (Default value = None)
 
         """
@@ -1373,17 +1436,26 @@ class Boxes:
         self.moveTo(r, 0)
 
         self.cc(callback, 0)
-        self.edges[edge](lx / 2.0 , bedBolts=self.getEntry(bedBolts, 0),
-                        bedBoltSettings=self.getEntry(bedBoltSettings, 0))
-        self.cc(callback, 1)
-        self.edges[edge](lx / 2.0, bedBolts=self.getEntry(bedBolts, 1),
-                        bedBoltSettings=self.getEntry(bedBoltSettings, 1))
-        for i, l in zip(range(3), (ly, lx, ly)):
+
+        if wallpieces > 4:
+            wallpieces = 4
+
+        wallcount = 0
+        for nr, l in enumerate((lx, ly, lx, ly)):
+            if self._splitWall(wallpieces, nr):
+                for i in range(2):
+                    self.cc(callback, wallcount)
+                    self.edges[edge](l / 2.0 ,
+                        bedBolts=self.getEntry(bedBolts, wallcount),
+                        bedBoltSettings=self.getEntry(bedBoltSettings, wallcount))
+                    wallcount += 1
+            else:
+                self.cc(callback, wallcount)
+                self.edges[edge](l,
+                    bedBolts=self.getEntry(bedBolts, wallcount),
+                    bedBoltSettings=self.getEntry(bedBoltSettings, wallcount))
+                wallcount += 1
             self.corner(90, r)
-            self.cc(callback, i + 2)
-            self.edges[edge](l, bedBolts=self.getEntry(bedBolts, i + 2),
-                            bedBoltSettings=self.getEntry(bedBoltSettings, i + 2))
-        self.corner(90, r)
 
         self.ctx.restore()
         self.ctx.save()
@@ -1405,22 +1477,23 @@ class Boxes:
     def surroundingWall(self, x, y, r, h,
                         bottom='e', top='e',
                         left="D", right="d",
+                        pieces=1,
                         callback=None,
                         move=None):
-        """h : inner height, not counting the joints
-        callback is called a beginn of the flat sides with
+        """
+        Wall(s) with flex fiting around a roundedPlate()
 
-        *  0 for right half of first x side;
-        *  1 and 3 for y sides;
-        *  2 for second x side
-        *  4 for second half of the first x side
+        For the callbacks the sides are counted depending on pieces
 
         :param x: width of matching roundedPlate
         :param y: height of matching roundedPlate
         :param r: corner radius of matching roundedPlate
-        :param h: height of the wall
+        :param h: inner height of the wall (without edges) 
         :param bottom:  (Default value = 'e') Edge type
         :param top:  (Default value = 'e') Edge type
+        :param left: (Default value = 'D') left edge(s)
+        :param right: (Default value = 'd') right edge(s)
+        :param pieces: (Default value = 1) number of separate pieces
         :param callback:  (Default value = None)
         :param move:  (Default value = None)
 
@@ -1437,8 +1510,7 @@ class Boxes:
         topwidth = top.startwidth()
         bottomwidth = bottom.startwidth()
 
-        overallwidth = 2 * x + 2 * y - 8 * r + 4 * c4 + \
-                       self.edges["d"].spacing() + self.edges["D"].spacing()
+        overallwidth = 2*x + 2*y - 8*r + 4*c4 + (self.edges["d"].spacing() + self.edges["D"].spacing() + self.spacing) * pieces
         overallheight = h + top.spacing() + bottom.spacing()
 
         if self.move(overallwidth, overallheight, move, before=True):
@@ -1446,36 +1518,57 @@ class Boxes:
 
         self.moveTo(left.spacing(), bottom.margin())
 
-        self.cc(callback, 0, y=bottomwidth + self.burn)
-        bottom(x / 2.0 - r)
-        if (y - 2 * r) < 1E-3:
-            self.edges["X"](2 * c4, h + topwidth + bottomwidth)
-            self.cc(callback, 2, y=bottomwidth + self.burn)
-            bottom(x - 2 * r)
-            self.edges["X"](2 * c4, h + topwidth + bottomwidth)
-            self.cc(callback, 4, y=bottomwidth + self.burn)
+        wallcount = 0
+        tops = [] # edges needed on the top for this wall segment
+
+        if pieces<=2 and (y - 2 * r) < 1E-3:
+            # remove zero length y sides
+            c4 *= 2
+            sides = (x/2-r, x - 2*r, x - 2*r)
+            if pieces > 0: # hack to get the right splits
+                pieces += 1
         else:
-            for i, l in zip(range(4), (y, x, y, 0)):
-                self.edges["X"](c4, h + topwidth + bottomwidth)
-                self.cc(callback, i + 1, y=bottomwidth + self.burn)
-                if i < 3:
-                    bottom(l - 2 * r)
-        bottom(x / 2.0 - r)
+            sides = (x/2-r, y - 2*r, x - 2*r, y - 2*r, x - 2*r)
 
-        self.edgeCorner(bottom, right, 90)
-        right(h)
-        self.edgeCorner(right, top, 90)
+        for nr, l in enumerate(sides):
+            if self._splitWall(pieces, nr) and nr > 0:
+                self.cc(callback, wallcount, y=bottomwidth + self.burn)
+                wallcount += 1
+                bottom(l / 2.)
+                tops.append(l / 2.)
 
-        top(x / 2.0 - r)
-        for i, l in zip(range(4), (y, x, y, 0)):
-            self.edge(c4)
-            if i < 3:
-                top(l - 2 * r)
-        top(x / 2.0 - r)
+                self.ctx.save()
+                # complete wall segment
+                self.edgeCorner(bottom, right, 90)
+                right(h)
+                self.edgeCorner(right, top, 90)
+                for n, d in enumerate(reversed(tops)):
+                    if n % 2: # flex
+                        self.edge(d)
+                    else:
+                        top(d)
+                self.edgeCorner(top, left, 90)
+                left(h)
+                self.edgeCorner(left, bottom, 90)
 
-        self.edgeCorner(top, left, 90)
-        left(h)
-        self.edgeCorner(left, bottom, 90)
+                self.ctx.restore()
+
+                if nr == len(sides) - 1:
+                    break
+                # start new wall segment
+                tops = []
+                self.moveTo(right.margin() + left.margin() + self.spacing)
+                self.cc(callback, wallcount, y=bottomwidth + self.burn)
+                wallcount += 1
+                bottom(l / 2.)
+                tops.append(l / 2.)
+            else:
+                self.cc(callback, wallcount, y=bottomwidth + self.burn)
+                wallcount += 1
+                bottom(l)
+                tops.append(l)
+            self.edges["X"](c4, h + topwidth + bottomwidth)
+            tops.append(c4)
 
         self.ctx.stroke()
 
@@ -1534,7 +1627,7 @@ class Boxes:
             self.edgeCorner(e1, e2, 90)
 
         if holesMargin is not None:
-            self.moveTo(holesMargin + edges[-1].endwidth(),
+            self.moveTo(holesMargin,
                         holesMargin + edges[0].startwidth())
             self.hexHolesRectangle(x - 2 * holesMargin, y - 2 * holesMargin)
 
@@ -1673,7 +1766,15 @@ class Boxes:
     ##################################################
 
     def partsMatrix(self, n, width, move, part, *l, **kw):
+        """place many of the same part
 
+        :param n: number of parts
+        :param width: number of parts in a row
+        :param move: (Default value = None)
+        :param part: callable that draws a part and knows move param
+        :param \*l: params for part
+        :param \*\*kw: keyword params for part
+        """
         if n <= 0:
             return
 

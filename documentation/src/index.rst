@@ -13,6 +13,9 @@ Contents:
 	
    README
    install
+   usermanual
+   CONTRIBUTING.rst
+   apiintro
    Boxes
    edges
 

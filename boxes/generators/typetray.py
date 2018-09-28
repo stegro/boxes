@@ -24,7 +24,7 @@ class TypeTray(Boxes):
 
     def __init__(self):
         Boxes.__init__(self)
-        self.buildArgParser("sx", "sy", "h", "hi", "outside")
+        self.buildArgParser("sx", "sy", "h", "hi", "outside", "bottom_edge")
         self.addSettingsArgs(edges.FingerJointSettings, surroundingspaces=0.5)
         self.argparser.add_argument(
             "--closedtop", action="store", type=boolarg, default=False,
@@ -50,7 +50,7 @@ class TypeTray(Boxes):
         for y in self.sy[:-1]:
             posy += y + self.thickness
             posx = 0
-            for x in self.sx:
+            for x in reversed(self.sx):
                 self.fingerHolesAt(posy, posx, x)
                 posx += x + self.thickness
 
@@ -92,11 +92,12 @@ class TypeTray(Boxes):
         self.open()
 
         # outer walls
-        e1 = "Ffef"
-        e2 = "FFeF"
+        b = self.bottom_edge
+        e1 = b + "fef"
+        e2 = b + "FeF"
         if self.closedtop:
-            e1 = "FfFf"
-            e2 = "FFFF"
+            e1 = b + "fFf"
+            e2 = b + "FFF"
 
         self.rectangularWall(x, h, e1, callback=[self.xHoles, None, self.gripHole],  move="right")
         self.rectangularWall(y, h, e2, callback=[self.yHoles, ], move="up")

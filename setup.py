@@ -2,6 +2,7 @@
 
 import glob
 import os
+import sys
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py
 
@@ -10,17 +11,23 @@ class CustomBuildExtCommand(build_py):
     """Customized setuptools install command - prints a friendly greeting."""
 
     def buildInkscapeExt(self):
-        os.system("%s %s" % (os.path.join("scripts", "boxes2inkscape"),
-                             "inkex"))
+        os.system("%s %s %s" % (sys.executable,
+                                os.path.join("scripts", "boxes2inkscape"),
+                                "inkex"))
 
     def run(self):
         self.execute(self.buildInkscapeExt, ())
         if os.name == "posix":
+            if sys.platform == "darwin":
+                path = "/usr/local/share/inkscape/extensions/"
+            else:
+                path = "/usr/share/inkscape/extensions/"
             if self.distribution.data_files is None:
                 self.distribution.data_files = []
             self.distribution.data_files.append(
-                ("/usr/share/inkscape/extensions/",
+                (path,
                  [i for i in glob.glob(os.path.join("inkex", "*.inx"))]))
+            self.distribution.data_files.append((path, ['scripts/boxes']))
         build_py.run(self)
 
 setup(
@@ -31,7 +38,7 @@ setup(
     author_email='florian@festi.info',
     url='https://github.com/florianfesti/boxes',
     packages=find_packages(),
-    install_requires=['cairocffi==0.8.0', 'markdown'],
+    install_requires=['cairocffi==0.8.0', 'markdown', 'lxml'],
     scripts=['scripts/boxes', 'scripts/boxesserver'],
     cmdclass={
         'build_py': CustomBuildExtCommand,

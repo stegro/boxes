@@ -15,7 +15,7 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from boxes import *
-
+import copy
 
 class RegularBox(Boxes):
     """Box with regular polygon as base"""
@@ -53,7 +53,9 @@ class RegularBox(Boxes):
 
         t = self.thickness
 
-        edges.FingerJointSettings(self.thickness, True, angle=360./n).edgeObjects(self, chars="gGH")
+        fingerJointSettings = copy.deepcopy(self.edges["f"].settings)
+        fingerJointSettings.setValues(self.thickness, angle=360./n)
+        fingerJointSettings.edgeObjects(self, chars="gGH")
 
         r, sh, side  = self.regularPolygon(n, radius=r)
 
@@ -78,7 +80,8 @@ class RegularBox(Boxes):
         self.regularPolygonWall(corners=n, r=r, edges='F', move="up only")
 
         side = 2 * math.sin(math.radians(180.0/n)) * r
-        fingers = self.top in ("hole", "round lid", "angled lid2")
+        fingers = self.top in ("hole", "angled hole", "round lid",
+                               "angled lid2")
         
         if n % 2:
             for i in range(n):
