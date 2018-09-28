@@ -26,6 +26,9 @@ class ConsoleEnclosureCase(Boxes):
     SHARP_CORNERS = "sharp corners"
     FLEX_CORNERS = "flex corners"
 
+    TOP_EDGE_FINGER = "finger edge"
+    TOP_EDGE_STRAIGHT_BOLTS = "straight edge with bolts"
+    
     def __init__(self):
         Boxes.__init__(self)
 
@@ -41,7 +44,7 @@ class ConsoleEnclosureCase(Boxes):
         self.argparser.add_argument(
                     "--height", action="store", type=float, default=210,
                     help="inner height in mm")
-        # Add non default cli params if needed (see argparse std lib)
+
         self.argparser.add_argument(
             "--angle",  action="store", type=float, default=50.0,
             help="the angle at the upper kink, between horizon and panel  (in degrees)")
@@ -50,13 +53,19 @@ class ConsoleEnclosureCase(Boxes):
             "--middle_angle",  action="store", type=float, default=0.0,
             help="the angle at the middle kink, between the two panel parts (in degrees). Using the value of the other angle parameter (above), try e.g. 180-angle+15")
 
+        top_edge_types = [self.TOP_EDGE_FINGER, self.TOP_EDGE_STRAIGHT_BOLTS]
+        self.argparser.add_argument(
+            "--top_edge",  action="store", type=str, default=top_edge_types[0],
+            choices=top_edge_types,
+            help="")
+
         self.argparser.add_argument(
             "--top_sidelength",  action="store", type=float, default=50.0,
             help="inner side length of the top part in mm. This is only relevant if middle_angle is nonzero")
         
         corner_types = [self.SHARP_CORNERS, self.FLEX_CORNERS]
         self.argparser.add_argument(
-            "--style",  action="store", type=str, default=self.FLEX_CORNERS,
+            "--style",  action="store", type=str, default=corner_types[-1],
             choices=corner_types,
             help="choose between "+",".join(corner_types))
 
@@ -205,6 +214,8 @@ class ConsoleEnclosureCase(Boxes):
 
             bedBoltsPanel = bedBolts[1:2+n_panels + 1]
         else:
+            side_edge = self.top_edge == self.TOP_EDGE_FINGER and "F" or "E"
+
             edge_string = 'hfe' + ('f'*n_panels) + 'h'
             bedBolts[2] = edges.Bolts(self.getEntry(self.bedbolts_number,0))
 
@@ -252,7 +263,9 @@ class ConsoleEnclosureCase(Boxes):
 
             #top
             self.drawHoles("top")
-            edge_string = self.middle_angle > 0 and "fFhF" or "eFhF" 
+            # FIXME schiefe winkel finger sind nicht korrekt
+            side_edge = self.top_edge == self.TOP_EDGE_FINGER and "F" or "E"
+            edge_string = self.middle_angle > 0 and ("f"+side_edge+"h"+side_edge) or "e"+side_edge+"h"+side_edge 
             self.rectangularWall(self.width, top_sidelength, edge_string, bedBolts=None, move="right")
 
             if(self.middle_angle > 0):
