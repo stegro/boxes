@@ -182,6 +182,8 @@ class BServer:
         for group in box.argparser._action_groups[3:] + box.argparser._action_groups[:3]:
             if not group._group_actions:
                 continue
+            if len(group._group_actions) == 1 and isinstance(group._group_actions[0], argparse._HelpAction):
+                continue
             prefix = getattr(group, "prefix", None)
             result.append('''<h3 id="h-%s" class="open" onclick="showHide(%s)">%s</h3>\n<table id="%s">\n''' % (groupid, groupid, group.title, groupid))
             for a in group._group_actions:
@@ -213,7 +215,7 @@ class BServer:
 <div class="footer container">
 <ul>
  <li><a href="https://github.com/florianfesti/boxes">Get Source at GitHub</a></li>
- <li><a href="http://florianfesti.github.io/boxes/html/index.html">Documentation and API Description</a></li>
+ <li><a href="https://florianfesti.github.io/boxes/html/index.html">Documentation and API Description</a></li>
  <li><a href="https://hackaday.io/project/10649-boxespy">Hackaday.io Project Page</a></li>
 </ul>
 </div>
@@ -295,7 +297,7 @@ Create boxes and more with a laser cutter!
 <div class="footer container">
 <ul>
  <li><a href="https://github.com/florianfesti/boxes">Get Source at GitHub</a></li>
- <li><a href="http://florianfesti.github.io/boxes/html/index.html">Documentation and API Description</a></li>
+ <li><a href="https://florianfesti.github.io/boxes/html/index.html">Documentation and API Description</a></li>
  <li><a href="https://hackaday.io/project/10649-boxespy">Hackaday.io Project Page</a></li>
 </ul>
 </div>
@@ -345,7 +347,7 @@ Create boxes and more with a laser cutter!
             return self.serveStatic(environ, start_response)
 
         status = '200 OK'
-        headers = [('Content-type', 'text/html; charset=utf-8')]
+        headers = [('Content-type', 'text/html; charset=utf-8'), ('X-XSS-Protection', '1; mode=block'), ('X-Content-Type-Options', 'nosniff'), ('x-frame-options', 'SAMEORIGIN'), ('Referrer-Policy', 'no-referrer')]
 
         d = cgi.parse_qs(environ['QUERY_STRING'])
         name = environ["PATH_INFO"][1:]
