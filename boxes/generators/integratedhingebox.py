@@ -33,7 +33,6 @@ class IntegratedHingeBox(Boxes):
         
 
     def render(self):
-        self.open()
 
         x, y, h, hl = self.x, self.y, self.h, self.lidheight
 
@@ -63,6 +62,5 @@ class IntegratedHingeBox(Boxes):
         self.rectangularWall(y, x, "ffff", move="up")
         self.rectangularWall(y, x, "ffff")
 
-        self.close()
 
 

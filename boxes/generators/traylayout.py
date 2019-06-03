@@ -151,7 +151,6 @@ class TrayLayout2(TrayLayout):
             for f in line:
                 hasfloor |= f
 
-        self.open()
 
         self.edges["s"] = boxes.edges.Slot(self, self.hi / 2.0)
         self.edges["C"] = boxes.edges.CrossingFingerHoleEdge(self, self.hi)
@@ -327,7 +326,6 @@ class TrayLayout2(TrayLayout):
             if x < lx:
                 posx += self.x[x] + self.thickness
 
-        self.close()
 
     def parse(self, input):
         x = []

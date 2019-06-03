@@ -42,8 +42,6 @@ class GearBox(Boxes):
             help="number of stages in the gear reduction")
 
     def render(self):
-        # Initialize canvas
-        self.open()
 
         if self.teeth2 < self.teeth1:
             self.teeth2, self.teeth1 = self.teeth1, self.teeth2
@@ -96,6 +94,5 @@ class GearBox(Boxes):
             self.gears(teeth=self.teeth1, dimension=self.modulus, angle=pressure_angle,
                        mount_hole=mh, profile_shift=profile_shift, move="down")
 
-        self.close()
 
 

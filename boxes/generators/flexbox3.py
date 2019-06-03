@@ -146,19 +146,17 @@ class FlexBox3(Boxes):
         width = 2 * x + y - 2 * r + c4 + 14 * thickness + 3 * h  # lock
         height = y + z + 8 * thickness
 
-        self.open()
 
         s = edges.FingerJointSettings(self.thickness, finger=1.,
                                       space=1., surroundingspaces=1)
         s.edgeObjects(self, "gGH")
 
-        self.ctx.save()
-        self.surroundingWall(move="right")
-        self.rectangularWall(x, z, edges="FFFF", move="right")
-        self.rectangularWall(h, z + 2 * (d + self.thickness), edges="GeGF", move="right")
-        self.lidSide(move="right")
-        self.lidSide(move="mirror right")
-        self.ctx.restore()
+        with self.saved_context():
+            self.surroundingWall(move="right")
+            self.rectangularWall(x, z, edges="FFFF", move="right")
+            self.rectangularWall(h, z + 2 * (d + self.thickness), edges="GeGF", move="right")
+            self.lidSide(move="right")
+            self.lidSide(move="mirror right")
 
         self.surroundingWall(move="up only")
 
@@ -166,6 +164,5 @@ class FlexBox3(Boxes):
         self.flexBoxSide(x, y, r, move="mirror right")
         self.rectangularWall(z, y, edges="fFeF")
 
-        self.close()
 
 

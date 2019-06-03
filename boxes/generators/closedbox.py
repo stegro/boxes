@@ -28,7 +28,6 @@ class ClosedBox(Boxes):
         self.buildArgParser("x", "y", "h", "outside")
 
     def render(self):
-        self.open()
 
         x, y, h = self.x, self.y, self.h
 
@@ -52,6 +51,5 @@ class ClosedBox(Boxes):
         self.rectangularWall(x, y, "ffff", bedBolts=[d2, d3, d2, d3], move="right")
         self.rectangularWall(x, y, "ffff", bedBolts=[d2, d3, d2, d3])
 
-        self.close()
 
 

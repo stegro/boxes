@@ -68,7 +68,9 @@ def run_generator(name, args):
     if lower_name in generators.keys():
         box = generators[lower_name]()
         box.parseArgs(args)
+        box.open()
         box.render()
+        box.close()
     else:
         msg = ('Unknown generator \'{}\'. Use boxes --list to get a list of '
                'available commands.\n').format(name)

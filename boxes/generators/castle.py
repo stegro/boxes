@@ -27,7 +27,6 @@ class Castle(Boxes):
         self.addSettingsArgs(edges.FingerJointSettings)
 
     def render(self, t_x=70, t_h=250, w1_x=300, w1_h=120, w2_x=100, w2_h=120):
-        self.open()
         s = edges.FingerJointSettings(10.0, relative=True,
                                       space=1, finger=1,
                                       width=self.thickness)
@@ -43,6 +42,5 @@ class Castle(Boxes):
         self.rectangularWall(w1_x, w1_h, "efpe", move="right")
         self.rectangularWall(w2_x, w2_h, "efpe", move="right")
 
-        self.close()
 
 

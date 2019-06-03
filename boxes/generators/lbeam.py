@@ -35,10 +35,8 @@ class LBeam(Boxes):
             y = self.adjustSize(y, False)
 
 
-        self.open()
 
         self.rectangularWall(x, h, "eFee", move="right")
         self.rectangularWall(y, h, "eeef")
 
-        self.close()
 

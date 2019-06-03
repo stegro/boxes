@@ -29,7 +29,6 @@ class FlexTest(Boxes):
 
     def render(self):
         x, y = self.x, self.y
-        self.open()
 
         self.moveTo(5, 5)
         self.edge(10)
@@ -43,6 +42,5 @@ class FlexTest(Boxes):
         self.edge(y)
         self.corner(90)
 
-        self.close()
 
 

@@ -64,7 +64,6 @@ class RackBox(Boxes):
         
         
     def render(self):
-        self.open()
 
         t = self.thickness
         self.h = h = self.h + 2*t # compensate for lid
@@ -94,6 +93,5 @@ class RackBox(Boxes):
         self.rectangularTriangle(tr, tr, "ffe", num=4,
             callback=[None, lambda: self.hole(trh, trh, d=d1)])
 
-        self.close()
 
 

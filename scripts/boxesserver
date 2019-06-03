@@ -317,8 +317,9 @@ Create boxes and more with a laser cutter!
   <meta name="flattr:id" content="456799">
 </head>
 <body>
-<h1>An error occurred!</h1>
-<p>""", str(e).encode(), b"""</p>
+<h1>An error occurred!</h1>""",
+u"".join(u"<p>%s</p>" % cgi.escape(s) for s in type(u"")(e).split(u"\n")).encode('utf-8'),
+b"""
 </body>
 </html>
 """ ]
@@ -395,7 +396,9 @@ Create boxes and more with a laser cutter!
                                box.format,
                                [('Content-type', 'application/unknown; charset=utf-8')]))
             fd, box.output = tempfile.mkstemp()
+            box.open()
             box.render()
+            box.close()
             result = open(box.output).readlines()
             os.close(fd)
             os.remove(box.output)

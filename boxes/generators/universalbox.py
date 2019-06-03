@@ -25,13 +25,13 @@ class UniversalBox(_TopEdge, _ChestLid):
 
     def __init__(self):
         Boxes.__init__(self)
-        self.addTopEdgeSettings()
+        self.addTopEdgeSettings(roundedtriangle={"outset" : 1})
         self.addSettingsArgs(edges.FlexSettings)
         self.buildArgParser("top_edge", "bottom_edge", "x", "y", "h")
         self.argparser.add_argument(
             "--lid",  action="store", type=str, default="default (none)",
             choices=("default (none)", "chest", "flat"),
-            help="additional lid")
+            help="additional lid (for straight top_edge only)")
         self.angle = 0
 
     def top_hole(self, x, y, top_edge):
@@ -56,7 +56,6 @@ class UniversalBox(_TopEdge, _ChestLid):
         x, y, h = self.x, self.y, self.h
         t = self.thickness
 
-        self.open()
 
         t1, t2, t3, t4 = self.topEdges(self.top_edge)
         b = self.edges.get(self.bottom_edge, self.edges["F"])
@@ -66,28 +65,28 @@ class UniversalBox(_TopEdge, _ChestLid):
 
         d2 = d3 = None
 
+
+        with self.saved_context():
+            self.rectangularWall(x, h, [b, "F", t1, "F"],
+                                 bedBolts=[d2], move="up")
+            self.rectangularWall(x, h, [b, "F", t3, "F"],
+                                 bedBolts=[d2], move="up")
+
+            if self.bottom_edge != "e":
+                self.rectangularWall(x, y, "ffff", bedBolts=[d2, d3, d2, d3], move="up")
+            if self.top_edge in "fF":
+                self.set_source_color(Color.RED)
+                self.rectangularWall(x+4*t, y+4*t, callback=[
+                    lambda:self.top_hole(x, y, self.top_edge)], move="up")
+                self.set_source_color(Color.BLACK)
+            self.drawLid(x, y, self.top_edge, [d2, d3])
+            self.drawAddOnLid(x, y, self.lid)
+
+        self.rectangularWall(x, h, [b, "F", t3, "F"],
+                             bedBolts=[d2], move="right only")
         self.rectangularWall(y, h, [b, "f", t2, "f"],
-                             bedBolts=[d3], move="right")
-        self.rectangularWall(x, h, [b, "F", t1, "F"],
-                             bedBolts=[d2], move="up")
-        self.rectangularWall(x, h, [b, "F", t3, "F"],
-                             bedBolts=[d2])
+                             bedBolts=[d3], move="up")
         self.rectangularWall(y, h, [b, "f", t4, "f"],
-                             bedBolts=[d3], move="left")
-        self.rectangularWall(x, h, [b, "F", t3, "F"],
-                             bedBolts=[d2], move="up only")
+                             bedBolts=[d3], move="up")
 
-        if self.bottom_edge != "e":
-            self.rectangularWall(x, y, "ffff", bedBolts=[d2, d3, d2, d3], move="right")
-        if (self.drawLid(x, y, self.top_edge, [d2, d3]) and
-            self.bottom_edge != "e"):
-            self.rectangularWall(x, y, "ffff", move="left only")
-        if self.top_edge in "fF":
-            self.ctx.set_source_rgb(1., 0, 0)
-            self.rectangularWall(x+4*t, y+4*t, callback=[
-                lambda:self.top_hole(x, y, self.top_edge)], move="right")
-            self.ctx.set_source_rgb(0, 0, 0)
-        self.drawAddOnLid(x, y, self.lid)
-
-        self.close()
 

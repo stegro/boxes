@@ -56,7 +56,6 @@ class Pulley(Boxes):
         if self.move(w, w, move, before=True):
             return
 
-        self.ctx.save()
         self.moveTo(w / 2, w / 2)
         self.cc(callback, None, 0.0, 0.0)
 
@@ -65,14 +64,11 @@ class Pulley(Boxes):
 
         self.moveTo(diameter / 2 + self.burn, 0, 90)
         self.corner(360, diameter / 2)
-        self.ctx.restore()
         self.move(w, w, move)
 
     def render(self):
         # adjust to the variables you want in the local scope
         t = self.thickness
-        # Initialize canvas
-        self.open()
 
         if self.top:
             self.disk(
@@ -82,6 +78,5 @@ class Pulley(Boxes):
         for i in range(int(math.ceil(self.h / self.thickness))):
             self.pulley(self.teeth, self.profile, insideout=self.insideout, r_axle=self.axle / 2.0, move="right")
 
-        self.close()
 
 

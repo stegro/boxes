@@ -58,7 +58,6 @@ class RoundedBox(Boxes):
             self.corner(90, r)
 
     def render(self):
-        self.open()
 
         x, y, h, r = self.x, self.y, self.h, self.radius
 
@@ -71,16 +70,15 @@ class RoundedBox(Boxes):
 
         t = self.thickness
 
-        self.ctx.save()
-        self.roundedPlate(x, y, r, wallpieces=self.wallpieces, move="right")
-        self.roundedPlate(x, y, r, wallpieces=self.wallpieces, move="right",
-                callback=[self.hole] if self.top != "closed" else None)
-        if self.top == "lid":
-            self.roundedPlate(x, y, r, "E", wallpieces=self.wallpieces, move="right")
-        self.ctx.restore()
+        with self.saved_context():
+            self.roundedPlate(x, y, r, wallpieces=self.wallpieces, move="right")
+            self.roundedPlate(x, y, r, wallpieces=self.wallpieces, move="right",
+                              callback=[self.hole] if self.top != "closed" else None)
+            if self.top == "lid":
+                self.roundedPlate(x, y, r, "E", wallpieces=self.wallpieces, move="right")
+
         self.roundedPlate(x, y, r, wallpieces=self.wallpieces, move="up only")
 
         self.surroundingWall(x, y, r, h, "F", "F", pieces=self.wallpieces)
-        self.close()
 
 

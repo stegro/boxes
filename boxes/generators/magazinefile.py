@@ -69,20 +69,16 @@ class MagazinFile(Boxes):
         self.hi = hi = self.hi or (h / 2.0)
         t = self.thickness
 
-        self.open()
 
-        self.ctx.save()
-        self.rectangularWall(x, h, "Ffef", move="up")
-        self.rectangularWall(x, hi, "Ffef", move="up")
-
-        self.rectangularWall(y, x, "ffff")
-        self.ctx.restore()
+        with self.saved_context():
+            self.rectangularWall(x, h, "Ffef", move="up")
+            self.rectangularWall(x, hi, "Ffef", move="up")
+            self.rectangularWall(x, y, "ffff")
 
         self.rectangularWall(x, h, "Ffef", move="right only")
         self.side(y, h, hi)
         self.moveTo(y + 15, h + hi + 15, 180)
         self.side(y, h, hi)
 
-        self.close()
 
 

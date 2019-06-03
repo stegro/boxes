@@ -39,11 +39,10 @@ class WineRack(Boxes):
             help="which of the honey comb walls to add")
 
     def hexFingerHoles(self, x, y, l, angle=90):
-        self.ctx.save()
-        self.moveTo(x, y, angle)
-        self.moveTo(self.delta, 0, 0)
-        self.fingerHolesAt(0, 0, l-2*self.delta, 0)
-        self.ctx.restore()
+        with self.saved_context():
+            self.moveTo(x, y, angle)
+            self.moveTo(self.delta, 0, 0)
+            self.fingerHolesAt(0, 0, l-2*self.delta, 0)
 
     def wallCB(self, frontwall=False, backwall=False):
         r = self.r
@@ -111,7 +110,6 @@ class WineRack(Boxes):
         self.cy = cy = int((y-dy-t) // (r+dy))
         self.delta = 3**0.5/6.*t
 
-        self.open()
         self.rectangularWall(x, y, callback=[self.wallCB], move="up")
         self.rectangularWall(x, y, callback=[lambda:self.wallCB(backwall=True)], move="up")
         self.rectangularWall(x, y, callback=[lambda:self.wallCB(frontwall=True)], move="up")
@@ -132,5 +130,4 @@ class WineRack(Boxes):
 
         self.partsMatrix(tc, cx, "up", self.rectangularWall, r-2*self.delta, h, "fefe")
 
-        self.close()
 

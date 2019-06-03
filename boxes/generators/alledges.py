@@ -36,19 +36,23 @@ class AllEdges(Boxes):
     def render(self):
         x = self.x
         t = self.thickness
-        # Initialize canvas
-        self.open()
 
         chars = list(self.edges.keys())
         chars.sort(key=lambda c: c.lower() + (c if c.isupper() else ''))
         chars.reverse()
+
+        self.moveTo(0, 10*t)
         
         for c in chars:
-            self.moveTo(0, 15*t)
-            self.ctx.save()
-            self.moveTo(x, 0, 180)
-            self.edges[c](x, h=4*t)
-            self.ctx.restore()
-            self.text("%s - %s" % (c, self.edges[c].description), y=5*t)
+            with self.saved_context():
+                self.moveTo(x, 0, 90)
+                self.edge(t+self.edges[c].startwidth())
+                self.corner(90)
+                self.edges[c](x, h=4*t)
+                self.corner(90)
+                self.edge(t+self.edges[c].endwidth())
 
-        self.close()
+            self.moveTo(0, 3*t + self.edges[c].spacing())
+            self.text("%s - %s" % (c, self.edges[c].description))
+            self.moveTo(0, 12*t)
+

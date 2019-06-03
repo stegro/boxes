@@ -49,8 +49,6 @@ class Planetary(Boxes):
         #    help="number of stages in the gear reduction")
 
     def render(self):
-        # Initialize canvas
-        self.open()
 
         ringteeth = self.sunteeth + 2 * self.planetteeth
         spoke_width = 3 * self.shaft
@@ -105,6 +103,5 @@ class Planetary(Boxes):
                        angle=pressure_angle,
                        mount_hole=self.shaft, profile_shift=profile_shift, move="up")
 
-        self.close()
 
 

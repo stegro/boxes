@@ -95,7 +95,6 @@ class FlexBox4(Boxes):
         self.edges["f"](h)
         self.edge(self.thickness)
         self.corner(90)
-        self.ctx.stroke()
 
         self.move(tw, th, move)
 
@@ -111,13 +110,11 @@ class FlexBox4(Boxes):
         self.radius = min(self.radius, max(0, self.y - self.latchsize))
         self.c4 = c4 = math.pi * self.radius * 0.5
 
-        self.open()
 
         self.surroundingWall(move="up")
         self.flexBoxSide(self.x, self.y, self.radius, move="right")
         self.flexBoxSide(self.x, self.y, self.radius, move="mirror right")
         self.rectangularWall(self.x, self.h, edges="FeFF")
 
-        self.close()
 
 

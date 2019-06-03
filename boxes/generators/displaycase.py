@@ -36,7 +36,6 @@ class DisplayCase(Boxes):
         )
 
     def render(self):
-        self.open()
 
         x, y, h = self.x, self.y, self.h
 
@@ -60,4 +59,3 @@ class DisplayCase(Boxes):
         self.flangedWall(x, y, "FFFF", flanges=[self.overhang] * 4, move="right")
         self.flangedWall(x, y, "FFFF", flanges=[self.overhang] * 4)
 
-        self.close()

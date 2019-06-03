@@ -28,6 +28,8 @@ from argparse import ArgumentParser
 import re
 from functools import wraps
 from xml.sax.saxutils import quoteattr
+from contextlib import contextmanager
+import copy
 
 from boxes import edges
 from boxes import formats
@@ -35,7 +37,7 @@ from boxes import svgutil
 from boxes import gears
 from boxes import pulley
 from boxes import parts
-
+from boxes.Color  import *
 
 ### Helpers
 
@@ -48,7 +50,6 @@ def dist(dx, dy):
     """
     return (dx * dx + dy * dy) ** 0.5
 
-
 def restore(func):
     """
     Wrapper: Restore coordiantes after function
@@ -59,10 +60,9 @@ def restore(func):
 
     @wraps(func)
     def f(self, *args, **kw):
-        self.ctx.save()
-        pt = self.ctx.get_current_point()
-        func(self, *args, **kw)
-        self.ctx.restore()
+        with self.saved_context():
+            pt = self.ctx.get_current_point()
+            func(self, *args, **kw)
         self.ctx.move_to(*pt)
 
     return f
@@ -79,10 +79,10 @@ def holeCol(func):
     @wraps(func)
     def f(self, *args, **kw):
         self.ctx.stroke()
-        self.ctx.set_source_rgb(0.0, 0.0, 1.0)
-        func(self, *args, **kw)
-        self.ctx.stroke()
-        self.ctx.set_source_rgb(0.0, 0.0, 0.0)
+        with self.saved_context():
+            self.set_source_color(Color.BLUE)
+            func(self, *args, **kw)
+            self.ctx.stroke()
 
     return f
 
@@ -120,6 +120,9 @@ class NutHole:
         self.boxes = boxes
         self.ctx = boxes.ctx
         self.settings = settings
+
+    def __getattr__(self, name):
+        return getattr(self.boxes, name)
 
     @restore
     @holeCol
@@ -220,6 +223,7 @@ class Boxes:
 
     def __init__(self):
         self.formats = formats.Formats()
+        self.ctx = None
         description = self.__doc__
         if self.description:
             description += "\n\n" + self.description
@@ -242,7 +246,7 @@ class Boxes:
             help="format of resulting file")
         defaultgroup.add_argument(
             "--tabs", action="store", type=float, default=0.0,
-            help="width of tabs holding th parts in place in mm (not supported everywhere)")
+            help="width of tabs holding the parts in place in mm (not supported everywhere)")
         defaultgroup.add_argument(
             "--debug", action="store", type=boolarg, default=False,
             help="print surrounding boxes for some structures")
@@ -253,21 +257,50 @@ class Boxes:
             "--burn", action="store", type=float, default=0.1,
             help="burn correction in mm (bigger values for tighter fit)")
 
+    @contextmanager
+    def saved_context(self):
+        """
+        Generator: for saving and restoring cairo contexts.
+        :param cr: cairo context
+        """
+        cr = self.ctx
+        cr.save()
+        try:
+            yield cr
+        finally:
+            cr.restore()
+
+    def set_source_color(self, color):
+        """
+        Sets the color of the pen.
+        """
+        self.ctx.set_source_rgb(*color)
+
     def open(self):
         """
         Prepare for rendering
 
-        Call this function from your .render() method
+        Create canvas and edge and other objects
+        Call this before .render()
         """
-        self.spacing = 2 * self.burn + 0.5 * self.thickness
+        if self.ctx is not None:
+            return
 
         self.bedBoltSettings = (3, 5.5, 2, 20, 15)  # d, d_nut, h_nut, l, l1
         self.hexHolesSettings = (5, 3, 'circle')  # r, dist, style
         self.surface, self.ctx = self.formats.getSurface(self.format, self.output)
-        self.ctx.set_line_width(max(2 * self.burn, 0.05))
+
+        if self.format == 'svg_Ponoko':
+            self.ctx.set_line_width(0.01)
+            self.set_source_color(Color.BLUE)
+        else:
+            self.ctx.set_line_width(max(2 * self.burn, 0.05))
+            self.set_source_color(Color.BLACK)
+
+        self.spacing = 2 * self.burn + 0.5 * self.thickness
         self.ctx.select_font_face("sans-serif")
         self._buildObjects()
-        if self.reference:
+        if self.reference and self.format != 'svg_Ponoko':
             self.move(10, 10, "up", before=True)
             self.ctx.rectangle(0, 0, self.reference, 10)
             if self.reference < 40:
@@ -289,7 +322,7 @@ class Boxes:
         Supported parameters are
 
         * floats: x, y, h, hi
-        * argparseSections: sx, sy
+        * argparseSections: sx, sy, sh
         * ArgparseEdgeType: bottom_edge, top_edge
         * boolarg: outside
         * str (selection): nema_mount
@@ -312,14 +345,19 @@ class Boxes:
                 self.argparser.add_argument(
                     "--sx", action="store", type=argparseSections,
                     default=default,
-                    help="""sections left to right in mm. Possible formats: overallwidth/numberof sections e.g. "250/5"; sectionwidth*numberofsections e.g. "50*5"; section widths separated by ":" e.g. "30:25.5:70"
-""")
+                    help="""sections left to right in mm. See --sy for format""")
             elif arg == "sy":
                 if default is None: default = "50*3"
                 self.argparser.add_argument(
                     "--sy", action="store", type=argparseSections,
                     default=default,
-                    help="""sections back to front in mm. See --sx for format""")
+                    help="""sections back to front in mm. Possible formats: overallwidth/numberof sections e.g. "250/5"; sectionwidth*numberofsections e.g. "50*5"; section widths separated by ":" e.g. "30:25.5:70""")
+            elif arg == "sh":
+                if default is None: default = "50*3"
+                self.argparser.add_argument(
+                    "--sh", action="store", type=argparseSections,
+                    default=default,
+                    help="""sections bottom to top in mm. See --sy for format""")
             elif arg == "h":
                 if default is None: default = 100.0
                 self.argparser.add_argument(
@@ -341,7 +379,7 @@ class Boxes:
                 if default is None: default = "e"
                 self.argparser.add_argument(
                     "--top_edge", action="store",
-                    type=ArgparseEdgeType("efFcESikvfL"), choices=list("efFcESikvfL"),
+                    type=ArgparseEdgeType("efFcESikvfLt"), choices=list("efFcESikvfLt"),
                     default=default, help="edge type for top edge")
             elif arg == "outside":
                 if default is None: default = True
@@ -385,8 +423,9 @@ class Boxes:
             setattr(self, key, value)
 
         # Change file ending to format if not given explicitly
+        format = getattr(self, "format", "svg")
         if getattr(self, 'output', None) == 'box.svg':
-            self.output = 'box.' + getattr(self, "format", "svg")
+            self.output = 'box.' + format.split("_")[0]
 
     def addPart(self, part, name=None):
         """
@@ -445,6 +484,9 @@ class Boxes:
         # Sliding Lid
         edges.LidSettings(self.thickness, True,
                 **self.edgesettings.get("Lid", {})).edgeObjects(self)
+        # Rounded Triangle Edge
+        edges.RoundedTriangleEdgeSettings(self.thickness, True,
+                **self.edgesettings.get("RoundedTriangleEdge", {})).edgeObjects(self)
 
         # Nuts
         self.addPart(NutHole(self, None))
@@ -489,7 +531,7 @@ class Boxes:
         You will typically need to call .parseArgs() before calling this one"""
         self.open()
         # Change settings and creat new Edges and part classes here
-        raise NotImplemented
+        raise NotImplementedError
         self.close()
 
     def cc(self, callback, number, x=0.0, y=None):
@@ -512,13 +554,12 @@ class Boxes:
                 pass
 
         if callback and callable(callback):
-            self.ctx.save()
-            self.moveTo(x, y)
-            if number is None:
-                callback()
-            else:
-                callback(number)
-            self.ctx.restore()
+            with self.saved_context():
+                self.moveTo(x, y)
+                if number is None:
+                    callback()
+                else:
+                    callback(number)
             self.ctx.move_to(0, 0)
 
     def getEntry(self, param, idx, default=None):
@@ -540,8 +581,13 @@ class Boxes:
     def close(self):
         """Finish rendering
 
-        Call at the end of your .render() method"""
+        Flush canvas to disk and convert output to requested format if needed.
+        Call after .render()"""
+        if self.ctx == None:
+            return
+
         self.ctx.stroke()
+        self.ctx = None
         self.surface.flush()
         self.surface.finish()
 
@@ -568,6 +614,11 @@ class Boxes:
 
         """
 
+        try:
+            degrees, radius = degrees
+        except:
+            pass
+
         rad = degrees * math.pi / 180
 
         if tabs and self.tabs:
@@ -579,7 +630,8 @@ class Boxes:
                 tabrad = -self.tabs / r_
 
             length = abs(r_ * rad)
-            tabs = min(tabs, max(1, int(abs(length) // (tabs*3*self.tabs))))
+            tabs = min(tabs, int(length // (tabs*3*self.tabs)))
+        if tabs and self.tabs:
             l = (length - tabs * self.tabs) / tabs
             lang = math.degrees(l / r_)
             if degrees < 0:
@@ -610,7 +662,7 @@ class Boxes:
             self.ctx.arc_negative(0, self.burn - radius, self.burn - radius,
                                   -0.5 * math.pi, -0.5 * math.pi + rad)
 
-        self.continueDirection(rad)
+        self._continueDirection(rad)
 
     def edge(self, length, tabs=0):
         """
@@ -654,15 +706,16 @@ class Boxes:
         dx = x3 - x2
         dy = y3 - y2
         rad = math.atan2(dy, dx)
-        self.continueDirection(rad)
+        self._continueDirection(rad)
 
     def polyline(self, *args):
         """
         Draw multiple connected lines
 
-        :param \*args: Alternating length in mm and angle. angle may be tuple
-                       (angle, radius)
+        :param \*args: Alternating length in mm and angle in degrees.
 
+        lengths may be a tuple (length, #tabs)
+        angles may be tuple (angle, radius)
         """
         for i, arg in enumerate(args):
             if i % 2:
@@ -722,11 +775,12 @@ class Boxes:
 
     def regularPolygon(self, corners=3, radius=None, h=None, side=None):
         """Give messures of a regular polygone
+
         :param corners: number of corners of the polygone
         :param radius: distance center to one of the corners
         :param h: distance center to one of the sides (height of sector)
         :param side: length of one side
-        :return (radius, h, side)
+        :return: (radius, h, side)
         """
         if radius:
             side = 2 * math.sin(math.radians(180.0/corners)) * radius
@@ -753,6 +807,7 @@ class Boxes:
     def regularPolygonWall(self, corners=3, r=None, h=None, side=None,
                            edges='e', hole=None, callback=None, move=None):
         """Create regular polygone as a wall
+
         :param corners: number of corners of the polygone
         :param radius: distance center to one of the corners
         :param h: distance center to one of the sides (height of sector)
@@ -790,7 +845,6 @@ class Boxes:
             edges[i](side)
             self.edgeCorner(edges[i], edges[i+1], 360.0/corners)
 
-        self.ctx.stroke()
         self.move(tw, th, move)
 
     def grip(self, length, depth):
@@ -871,20 +925,18 @@ class Boxes:
         """
         d = (x - hl - 2 * r) / 2.0
 
-        self.ctx.save()
-
         # Hole
-        self.moveTo(d + 2 * r, 0)
-        self.edge(hl - 2 * r)
-        self.corner(-90, r)
-        self.edge(h - 3 * r)
-        self.corner(-90, r)
-        self.edge(hl - 2 * r)
-        self.corner(-90, r)
-        self.edge(h - 3 * r)
-        self.corner(-90, r)
+        with self.saved_context():
+            self.moveTo(d + 2 * r, 0)
+            self.edge(hl - 2 * r)
+            self.corner(-90, r)
+            self.edge(h - 3 * r)
+            self.corner(-90, r)
+            self.edge(hl - 2 * r)
+            self.corner(-90, r)
+            self.edge(h - 3 * r)
+            self.corner(-90, r)
 
-        self.ctx.restore()
         self.moveTo(0, 0)
 
         self.curveTo(d, 0, d, 0, d, -h + r)
@@ -926,7 +978,7 @@ class Boxes:
             self.moveTo(r*math.sin(-rad),
                         -r*(1-math.cos(rad)), angle)
 
-    def continueDirection(self, angle=0):
+    def _continueDirection(self, angle=0):
         """
         Set coordinate system to current position (end point)
 
@@ -1135,15 +1187,15 @@ class Boxes:
                 raise ValueError("Unknown alignment: %s" % align)
 
         self.ctx.stroke()
-        self.ctx.set_source_rgb(1.0, 1.0, 1.0)
+        self.set_source_color(Color.WHITE)
         self.ctx.rectangle(0, 0, width, height)
         self.ctx.stroke()
-        self.ctx.set_source_rgb(*color)
+        self.set_source_color(color)
         self.ctx.scale(1, -1)
         for line in reversed(text):
             self.ctx.show_text(line)
             self.moveTo(0, 1.4 * -lheight)
-        self.ctx.set_source_rgb(0.0, 0.0, 0.0)
+        self.set_source_color(Color.BLACK)
         self.ctx.set_font_size(10)
 
     tx_sizes = {
@@ -1373,23 +1425,19 @@ class Boxes:
         for i in range(cx):
             for j in range(cy):
                 if (i + j) % 2:
-                    self.ctx.save()
-                    self.moveTo((5 * i) * wx, (5 * j) * wy)
-                    self.polyline(*armx)
-                    self.ctx.restore()
-                    self.ctx.save()
-                    self.moveTo((5 * i + 5) * wx, (5 * j + 5) * wy, -180)
-                    self.polyline(*armx)
-                    self.ctx.restore()
+                    with self.saved_context():
+                        self.moveTo((5 * i) * wx, (5 * j) * wy)
+                        self.polyline(*armx)
+                    with self.saved_context():
+                        self.moveTo((5 * i + 5) * wx, (5 * j + 5) * wy, -180)
+                        self.polyline(*armx)
                 else:
-                    self.ctx.save()
-                    self.moveTo((5 * i + 5) * wx, (5 * j) * wy, 90)
-                    self.polyline(*army)
-                    self.ctx.restore()
-                    self.ctx.save()
-                    self.moveTo((5 * i) * wx, (5 * j + 5) * wy, -90)
-                    self.polyline(*army)
-                    self.ctx.restore()
+                    with self.saved_context():
+                        self.moveTo((5 * i + 5) * wx, (5 * j) * wy, 90)
+                        self.polyline(*army)
+                    with self.saved_context():
+                        self.moveTo((5 * i) * wx, (5 * j + 5) * wy, -90)
+                        self.polyline(*army)
         self.ctx.stroke()
 
     ##################################################
@@ -1478,7 +1526,7 @@ class Boxes:
                 r = 0
             self.hexHolesPlate(x - 2 * holesMargin, y - 2 * holesMargin, r,
                                settings=holesSettings)
-        self.ctx.stroke()
+
         self.move(overallwidth, overallheight, move)
 
     def surroundingWall(self, x, y, r, h,
@@ -1544,21 +1592,19 @@ class Boxes:
                 bottom(l / 2.)
                 tops.append(l / 2.)
 
-                self.ctx.save()
                 # complete wall segment
-                self.edgeCorner(bottom, right, 90)
-                right(h)
-                self.edgeCorner(right, top, 90)
-                for n, d in enumerate(reversed(tops)):
-                    if n % 2: # flex
-                        self.edge(d)
-                    else:
-                        top(d)
-                self.edgeCorner(top, left, 90)
-                left(h)
-                self.edgeCorner(left, bottom, 90)
-
-                self.ctx.restore()
+                with self.saved_context():
+                    self.edgeCorner(bottom, right, 90)
+                    right(h)
+                    self.edgeCorner(right, top, 90)
+                    for n, d in enumerate(reversed(tops)):
+                        if n % 2: # flex
+                            self.edge(d)
+                        else:
+                            top(d)
+                    self.edgeCorner(top, left, 90)
+                    left(h)
+                    self.edgeCorner(left, bottom, 90)
 
                 if nr == len(sides) - 1:
                     break
@@ -1576,8 +1622,6 @@ class Boxes:
                 tops.append(l)
             self.edges["X"](c4, h + topwidth + bottomwidth)
             tops.append(c4)
-
-        self.ctx.stroke()
 
         self.move(overallwidth, overallheight, move)
 
@@ -1638,8 +1682,6 @@ class Boxes:
                         holesMargin + edges[0].startwidth())
             self.hexHolesRectangle(x - 2 * holesMargin, y - 2 * holesMargin)
 
-        self.ctx.stroke()
-
         self.move(overallwidth, overallheight, move)
 
     def flangedWall(self, x, y, edges="FFFF", flanges=None, r=0.0,
@@ -1648,6 +1690,7 @@ class Boxes:
 
         This is similar to the rectangularWall but it may extend to either side
         replacing the F edge with fingerHoles. Use with E and F for edges only.
+
         :param x: width
         :param y: height
         :param edges:  (Default value = "FFFF") bottom, right, top, left
@@ -1768,6 +1811,175 @@ class Boxes:
 
         self.move(overallwidth, overallheight, move)
 
+
+    ### polygonWall and friends
+
+    def _polygonWallExtend(self, borders, edge, close=False):
+        posx, posy = 0, 0
+        ext = [ 0.0 ] * 4
+        angle = 0
+
+        def checkpoint(ext, x, y):
+            ext[0] = min(ext[0], x)
+            ext[1] = min(ext[1], y)
+            ext[2] = max(ext[2], x)
+            ext[3] = max(ext[3], y)
+
+        for i in range(len(borders)):
+            if i % 2:
+                try:
+                    a, r = borders[i]
+                except TypeError:
+                    angle = (angle + borders[i]) % 360
+                    continue
+                if a > 0:
+                    centerx = posx + r * math.cos(math.radians(angle+90))
+                    centery = posy + r * math.sin(math.radians(angle+90))
+                else:
+                    centerx = posx + r * math.cos(math.radians(angle-90))
+                    centery = posy + r * math.sin(math.radians(angle-90))
+
+                for direction in (0, 90, 180, 270):
+                    if (a > 0 and
+                        angle <= direction and (angle + a) % 360 >= direction):
+                        direction -= 90
+                    elif (a < 0 and
+                          angle >= direction and (angle + a) % 360 <= direction):
+                        direction -= 90
+                    else:
+                        continue
+                    checkpoint(ext, centerx + r * math.cos(math.radians(direction)), centery + r * math.sin(math.radians(direction)))
+                    #print("%4s %4s %4s %f %f" % (angle, direction+90, angle+a, centerx + r * math.cos(math.radians(direction)), centery + r * math.sin(math.radians(direction))))
+                angle = (angle + a) % 360
+                if a > 0:
+                    posx = centerx + r * math.cos(math.radians(angle-90))
+                    posy = centery + r * math.sin(math.radians(angle-90))
+                else:
+                    posx = centerx + r * math.cos(math.radians(angle+90))
+                    posy = centery + r * math.sin(math.radians(angle+90))
+            else:
+                posx += borders[i] * math.cos(math.radians(angle))
+                posy += borders[i] * math.sin(math.radians(angle))
+            checkpoint(ext, posx, posy)
+
+        ext[0] -= edge.margin()
+        ext[1] -= edge.margin()
+        ext[2] += edge.margin()
+        ext[3] += edge.margin()
+
+        return ext
+
+    def polygonWall(self, borders, edge="f", turtle=False,
+                    callback=None, move=None):
+
+        e = self.edges.get(edge, edge)
+        t = self.thickness # XXX edge.margin()
+
+        minx, miny, maxx, maxy = self._polygonWallExtend(borders, e)
+
+        tw, th = maxx - minx, maxy - miny
+
+        if not turtle:
+            if self.move(tw, th, move, True):
+                return
+        
+            self.moveTo(-minx, -miny)
+
+        length_correction = 0.
+        for i in range(0, len(borders), 2):
+            self.cc(callback, i)
+            self.edge(length_correction)
+            l = borders[i] - length_correction
+            next_angle = borders[i+1]
+
+            if isinstance(next_angle, (int, float)) and next_angle < 0:
+                length_correction = t * math.tan(math.radians((-next_angle / 2)))
+            else:
+                length_correction = 0.0
+            l -= length_correction
+            e(l)
+            self.edge(length_correction)
+            self.corner(next_angle, tabs=1)
+
+        if not turtle:
+            self.move(tw, th, move)
+
+    @restore
+    def polygonWalls(self, borders, h, bottom="F", top="F", symetrical=True):
+        bottom = self.edges.get(bottom, bottom)
+        top = self.edges.get(top, top)
+        t = self.thickness # XXX edge.margin()
+
+        leftsettings = copy.deepcopy(self.edges["f"].settings)
+        lf, lF, lh = leftsettings.edgeObjects(self, add=False)
+        rightsettings = copy.deepcopy(self.edges["f"].settings)
+        rf, rF, rh = rightsettings.edgeObjects(self, add=False)
+
+        length_correction = 0.
+        angle = borders[-1]
+        i = 0
+        part_cnt = 0
+
+        self.moveTo(0, bottom.margin())
+        while i < len(borders):
+            if symetrical:
+                if part_cnt % 2:
+                    left, right = lf, rf
+                else:
+                    left, right = lF, rF
+            else:
+                left, right = lf, rF
+
+            top_lengths = []
+            top_edges = []
+
+            self.moveTo(left.spacing() + self.spacing, 0)
+            l = borders[i] - length_correction
+            leftsettings.setValues(self.thickness, angle=angle)
+            angle = borders[i+1]
+
+            while isinstance(angle, (tuple, list)):
+                bottom(l)
+                angle, radius = angle
+                lr = abs(math.radians(angle) * radius)
+                self.edges["X"](lr, h + 2*t) # XXX
+                top_lengths.append(l)
+                top_lengths.append(lr)
+                top_edges.append(top)
+                top_edges.append("E")
+
+                i += 2
+                l = borders[i]
+                angle = borders[i+1]
+
+            rightsettings.setValues(self.thickness, angle=angle)
+            if angle < 0:
+                length_correction = t * math.tan(math.radians((-angle / 2)))
+            else:
+                length_correction = 0.0
+            l -= length_correction
+
+            bottom(l)
+
+            top_lengths.append(l)
+            top_edges.append(top)
+            with self.saved_context():
+                self.edgeCorner(bottom, right, 90)
+                right(h)
+                self.edgeCorner(right, top, 90)
+
+                top_edges.reverse()
+                top_lengths.reverse()
+                edges.CompoundEdge(self, top_edges, top_lengths)(sum(top_lengths))
+                self.edgeCorner(top, left, 90)
+                left(h)
+                self.edgeCorner(left, bottom, 90)
+
+            self.moveTo(right.spacing() + self.spacing)
+            part_cnt += 1
+            i += 2
+
+
     ##################################################
     ### Place Parts
     ##################################################
@@ -1803,15 +2015,14 @@ class Boxes:
                     part(*l, **kw)
         # draw matrix
         for i in range(rows):
-            self.ctx.save()
-            for j in range(width):
-                if "only" in move:
-                    break
-                if width*i+j >= n:
-                    break
-                kw["move"] = "right"
-                part(*l, **kw)
-            self.ctx.restore()
+            with self.saved_context():
+                for j in range(width):
+                    if "only" in move:
+                        break
+                    if width*i+j >= n:
+                        break
+                    kw["move"] = "right"
+                    part(*l, **kw)
             kw["move"] = "up only"
             part(*l, **kw)
 
@@ -1826,3 +2037,29 @@ class Boxes:
             kw["move"] = "right only"
             for i in range(width):
                 part(*l, **kw)
+
+    def mirrorX(self, f, offset=0.0):
+        """Wrap a function to draw mirrored at the y axis
+
+        :param f: function to wrap
+        :param offset: (default value = 0.0) axis to mirror at
+        """
+        def r():
+            self.moveTo(offset, 0)
+            with self.saved_context():
+                self.ctx.scale(-1, 1)
+                f()
+        return r
+
+    def mirrorY(self, f, offset=0.0):
+        """Wrap a function to draw mirrored at the x axis
+
+        :param f: function to wrap
+        :param offset: (default value = 0.0) axis to mirror at
+        """
+        def r():
+            self.moveTo(0, offset)
+            with self.saved_context():
+                self.ctx.scale(1, -1)
+                f()
+        return r

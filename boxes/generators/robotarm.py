@@ -44,8 +44,6 @@ class RobotArm(Boxes): # change class name here and below
                 help="length of segment axle to axle")
 
     def render(self):
-        # Initialize canvas
-        self.open()
 
         for i in range(5, 0,-1):
             armtype = getattr(self, "type%i" % i)
@@ -58,5 +56,4 @@ class RobotArm(Boxes): # change class name here and below
             servoClsA = getattr(servos, servoA)
             servoClsB = getattr(servos, servoB)
             armcls(self, servoClsA(self), servoClsB(self))(length, move="up")
-        self.close()
 

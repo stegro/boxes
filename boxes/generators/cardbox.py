@@ -96,7 +96,6 @@ class CardBox(Boxes):
             self.fingerHolesAt(0.5*t + (c+t)*i, 0, y, 90)
 
     def render(self):
-        self.open()
         h = self.h
         t = self.thickness
 
@@ -113,30 +112,29 @@ class CardBox(Boxes):
         p.char = "A"
         self.addPart(p)
 
-        self.ctx.save()
+        with self.saved_context():
+            # Lid
+            self.rectangularWall(x-t*.2, y, "Feee", move="right")
+            # Bottom
+            self.rectangularWall(x, y, "ffff", callback=[self.divider_bottom],
+                                 move="right")
 
-        # Lid
-        self.rectangularWall(x-t*.2, y+t, "eeee", move="right")
-        # Bottom
-        self.rectangularWall(x, y, "ffff", callback=[self.divider_bottom],
-                             move="right")
-
-        self.ctx.restore()
         self.rectangularWall(x, y, "EEEE", move="up only")
-        self.ctx.save()
 
-        # Back
-        self.rectangularWall(x, h, "FFEF",
-                             callback=[self.divider_back_and_front],
-                             move="right")
-        # Front
-        self.rectangularWall(x, h, "FFaF",
-                             callback=[self.divider_back_and_front],
-                             move="right")
+        with self.saved_context():
+            # Back
+            self.rectangularWall(x, h, "FFEF",
+                                 callback=[self.divider_back_and_front],
+                                 move="right")
+            # Front
+            self.rectangularWall(x, h, "FFaF",
+                                 callback=[self.divider_back_and_front],
+                                 move="right")
 
-        self.ctx.restore()
         self.rectangularWall(x, h, "EEEE", move="up only")
-        self.ctx.save()
+
+        #lip of the lid
+        self.rectangularWall(x-t*.2, t, "fEeE", move="up")
 
         # Outer sides
         self.rectangularWall(h, y, "fFfF", move="right")
@@ -154,4 +152,3 @@ class CardBox(Boxes):
         for i in range(self.num - 1):
             self.rectangularWall(h-t, y, "fAff", move="right")
 
-        self.close()

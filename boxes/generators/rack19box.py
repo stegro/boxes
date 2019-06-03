@@ -63,7 +63,6 @@ class Rack19Box(Boxes):
         
         
     def _render(self, type):
-        self.open()
 
         t = self.thickness
         self.h = h = self.height * 44.45 - 0.787 - t
@@ -93,7 +92,6 @@ class Rack19Box(Boxes):
         self.rectangularTriangle(tr, tr, "ffe", num=4,
             callback=[None, lambda: self.hole(trh, trh, d=d1)])
 
-        self.close()
 
     def render(self):
         self._render(type=19)

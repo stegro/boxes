@@ -98,7 +98,6 @@ class OttoBody(Boxes):
         self.move(w+4, h+8+t, move)
 
     def render(self):
-        self.open()
 
         self.x = x = 60.
         self.y = y = 60.
@@ -138,12 +137,11 @@ class OttoBody(Boxes):
         # bottom
         self.rectangularWall(x, y, "ffff", callback=[self.bottomCB], move="up")
         # PCB mounts
-        self.ctx.save()
-        self.PCB_Clamp(y-53.5, 4.5, hl, move="right")
-        self.PCB_Clamp(y-50, 4.5, hl, move="right")
-        self.PCB_Clip(3.5, hl, move="right")
-        self.rectangularWall(15, 15, callback=[self.buttonCB])
-        self.ctx.restore()
+        with self.saved_context():
+            self.PCB_Clamp(y-53.5, 4.5, hl, move="right")
+            self.PCB_Clamp(y-50, 4.5, hl, move="right")
+            self.PCB_Clip(3.5, hl, move="right")
+            self.rectangularWall(15, 15, callback=[self.buttonCB])
         self.PCB_Clamp(y-53.5, 4.5, hl, move="up only")
         # servo mounts
         self.moveTo(0, 50)
@@ -152,6 +150,5 @@ class OttoBody(Boxes):
         self.rectangularWall(y-5.6, 14, callback=[
             None, None, None, self.rightBottomCB], move="up")
 
-        self.close()
 
 

@@ -47,8 +47,6 @@ class BOX(Boxes): # Change class name!
         # adjust to the variables you want in the local scope
         x, y, h = self.x, self.y, self.h
         t = self.thickness
-        # Initialize canvas
-        self.open()
 
         # Create new Edges here if needed E.g.:
         s = edges.FingerJointSettings(self.thickness, relative=False,
@@ -60,4 +58,3 @@ class BOX(Boxes): # Change class name!
 
         # render your parts here
 
-        self.close()

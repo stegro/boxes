@@ -104,8 +104,6 @@ class OttoLegs(Boxes):
     def render(self):
         # adjust to the variables you want in the local scope
         t = self.thickness
-        # Initialize canvas
-        self.open()
 
         ws = 25
         lx, ly, lh = 12.4, 23.5, max(self.length, ws+6+t)
@@ -150,5 +148,4 @@ class OttoLegs(Boxes):
         self.ankles(30, 25, callback=[None, self.ankle1], move="right")
         self.ankles(30, 25, callback=[None, self.ankle2], move="right")
         self.partsMatrix(2, 2, "right", self.servoring)
-        self.close()
 

@@ -35,7 +35,6 @@ class OpenBox(Boxes):
             y = self.adjustSize(y, False)
             h = self.adjustSize(h, False)
 
-        self.open()
 
         d2 = [edges.Bolts(2)]
         d3 = [edges.Bolts(3)]
@@ -50,5 +49,4 @@ class OpenBox(Boxes):
         self.rectangularWall(x, y, "efff", bedBolts=[d2, d3, d2, d3], move="left")
         #self.rectangularWall(x, y, "ffff", bedBolts=[d2, d3, d2, d3])
 
-        self.close()
 

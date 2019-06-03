@@ -44,23 +44,19 @@ class TwoPiece(Boxes):
             y -= 4*t + 2*p
             h -= 2 * t
 
-        # Initialize canvas
-        self.open()
 
         # Adjust h edge with play
         self.edges["f"].settings.setValues(t, False, edge_width=self.edges["f"].settings.edge_width + p)
 
         for i in range(2):
             d = i * 2 * (t+p)
-            self.ctx.save()
-            self.rectangularWall(x+d, h, "fFeF", bedBolts=None, move="right")
-            self.rectangularWall(y+d, h, "ffef", bedBolts=None, move="right")
-            self.rectangularWall(x+d, h, "fFeF", bedBolts=None, move="right")
-            self.rectangularWall(y+d, h, "ffef", bedBolts=None, move="right")
-            self.ctx.restore()
+            with self.saved_context():
+                self.rectangularWall(x+d, h, "fFeF", bedBolts=None, move="right")
+                self.rectangularWall(y+d, h, "ffef", bedBolts=None, move="right")
+                self.rectangularWall(x+d, h, "fFeF", bedBolts=None, move="right")
+                self.rectangularWall(y+d, h, "ffef", bedBolts=None, move="right")
             self.rectangularWall(y, h, "ffef", bedBolts=None, move="up only")
 
         self.rectangularWall(x, y, "hhhh", bedBolts=None, move="right")
         self.rectangularWall(x+d, y+d, "FFFF", bedBolts=None, move="right")
         
-        self.close()

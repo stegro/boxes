@@ -43,7 +43,6 @@ class Hook(Boxes):
             help="angle of the support underneeth")
 
     def render(self):
-        self.open()
 
         self.angle = min(self.angle, 80)
         t = self.thickness
@@ -58,7 +57,6 @@ class Hook(Boxes):
             lambda: self.hole((h - t)/2, w/2, d=17)])
         self.rectangularWall(s-t, w, 'FeFf', move='right')
 
-        self.close()
 
 
     def back_callback(self, n):

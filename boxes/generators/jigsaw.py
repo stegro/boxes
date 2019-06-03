@@ -73,19 +73,15 @@ class JigsawPuzzle(Boxes):  # change class name here and below
         self.corner(parity * 90)
         # if level == 3 and parity>0: # and random.random() < 100*0.5**(self.depth-2):
         #  self.corner(-360, 0.4*self.size/2**self.depth)
-        # self.ctx.save()
-        # self.corner(parity*-90)
-        # self.edge(self.size/2**self.depth)
-        # self.ctx.restore()
+        # with self.savedcontext():
+        #     self.corner(parity*-90)
+        #     self.edge(self.size/2**self.depth)
 
     def render(self):
         size = self.size
         t = self.thickness
-        # Initialize canvas
-        self.open()
         self.burn = 0.0
         self.moveTo(10, 10)
         self.hilbert(self.depth)
-        self.close()
 
 

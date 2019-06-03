@@ -33,7 +33,6 @@ class Folder(Boxes):
     def render(self):
         x, y, r, h = self.x, self.y, self.r, self.h
         c2 = math.pi * h
-        self.open()
         self.moveTo(r + self.thickness, self.thickness)
         self.edge(x - r)
         self.edges["X"](c2, y)
@@ -46,6 +45,5 @@ class Folder(Boxes):
         self.edge(y - 2 * r)
         self.corner(90, r)
 
-        self.close()
 
 

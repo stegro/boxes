@@ -27,7 +27,15 @@ def getDescriptions():
     d = {edge.char: edge.description for edge in globals().values()
          if inspect.isclass(edge) and issubclass(edge, BaseEdge)
          and edge.char}
-    d['k'] = "Straight edge with hinge eye (both ends)"
+    d['j'] = d['i'] + " (other end)"
+    d['J'] = d['I'] + " (other end)"
+    d['k'] = d['i'] + " (both ends)"
+    d['K'] = d['I'] + " (both ends)"
+    d['O'] = d['o'] + ' (other end)'
+    d['P'] = d['p'] + ' (other end)'
+    d['U'] = d['u'] + ' top side'
+    d['v'] = d['u'] + u' for 90° lid'
+    d['V'] = d['u'] + u' 90° lid'
     return d
 
 
@@ -576,6 +584,10 @@ class FingerJointBase:
         if angle >=90:
             return self.settings.thickness, 0
 
+        if angle < 0:
+            return math.sin(math.radians(-angle)) * self.settings.thickness, 0
+
+        # 0 to 90
         a = 90 - (180-angle) / 2.0
         fingerlength = self.settings.thickness * math.tan(math.radians(a))
         b = 90-2*a
@@ -666,29 +678,25 @@ class FingerHoles(FingerJointBase):
         :param bedBoltSettings:  (Default value = None)
 
         """
-        self.boxes.ctx.save()
-        self.boxes.moveTo(x, y, angle)
-        s, f = self.settings.space, self.settings.finger
-        p = self.settings.play
-        b = self.boxes.burn
-        fingers, leftover = self.calcFingers(length, bedBolts)
+        with self.boxes.saved_context():
+            self.boxes.moveTo(x, y, angle)
+            s, f = self.settings.space, self.settings.finger
+            p = self.settings.play
+            b = self.boxes.burn
+            fingers, leftover = self.calcFingers(length, bedBolts)
 
-        if self.boxes.debug:
-            self.ctx.rectangle(b, -self.settings.width / 2 + b,
-                               length - 2 * b, self.settings.width - 2 * b)
-        for i in range(fingers):
-            pos = leftover / 2.0 + i * (s + f)
+            if self.boxes.debug:
+                self.ctx.rectangle(b, -self.settings.width / 2 + b,
+                                   length - 2 * b, self.settings.width - 2 * b)
+            for i in range(fingers):
+                pos = leftover / 2.0 + i * (s + f)
 
-            if bedBolts and bedBolts.drawBolt(i):
-                d = (bedBoltSettings or self.boxes.bedBoltSettings)[0]
-                self.boxes.hole(pos - 0.5 * s, 0, d * 0.5)
+                if bedBolts and bedBolts.drawBolt(i):
+                    d = (bedBoltSettings or self.boxes.bedBoltSettings)[0]
+                    self.boxes.hole(pos - 0.5 * s, 0, d * 0.5)
 
-            self.boxes.rectangularHole(pos + 0.5 * f, 0,
-                                       f+p, self.settings.width+p)
-
-        self.ctx.restore()
-        self.ctx.move_to(0, 0)
-
+                self.boxes.rectangularHole(pos + 0.5 * f, 0,
+                                           f+p, self.settings.width+p)
 
 class FingerHoleEdge(BaseEdge):
     """Edge with holes for a parallel finger joint"""
@@ -706,14 +714,11 @@ class FingerHoleEdge(BaseEdge):
 
     def __call__(self, length, bedBolts=None, bedBoltSettings=None, **kw):
         dist = self.fingerHoles.settings.edge_width
-        self.ctx.save()
-        self.fingerHoles(0, dist + self.settings.thickness / 2, length, 0,
-                         bedBolts=bedBolts, bedBoltSettings=bedBoltSettings)
-        self.ctx.restore()
-        # XXX continue path
-        self.ctx.move_to(0, 0)
-        self.ctx.line_to(length, 0)
-        self.ctx.translate(*self.ctx.get_current_point())
+        with self.saved_context():
+            self.fingerHoles(
+                0, dist + self.settings.thickness / 2, length, 0,
+                bedBolts=bedBolts, bedBoltSettings=bedBoltSettings)
+        self.edge(length, tabs=2)
 
     def startwidth(self):
         """ """
@@ -1118,7 +1123,7 @@ Values:
 
 class ChestHinge(BaseEdge):
 
-    "Edge with chest hinge"
+    description = "Edge with chest hinge"
 
     char = "o"
 
@@ -1203,7 +1208,7 @@ class ChestHingeTop(ChestHinge):
 
 class ChestHingePin(BaseEdge):
 
-    "Edge with pins for an chest hinge"
+    description = "Edge with pins for an chest hinge"
 
     char = "q"
 
@@ -1220,9 +1225,9 @@ class ChestHingePin(BaseEdge):
         return (self.settings.pin_height+self.settings.hinge_strength)
 
 
-class ChestHingeFront(BaseEdge):
+class ChestHingeFront(Edge):
 
-    "Edge opposing a chest hinge"
+    description = "Edge opposing a chest hinge"
 
     char = "Q"
 
@@ -1243,6 +1248,7 @@ Values:
  * eyes_per_hinge : 5 : pieces per hinge
  * hinges : 2 : number of hinges per edge
  * style : inside : style of hinge used
+
 * relative (in multiples of thickness)
 
  * eye : 1.5 : radius of the eye (in multiples of thickness)
@@ -1275,7 +1281,7 @@ Values:
 class CabinetHingeEdge(BaseEdge):
     """Edge with cabinet hinges"""
 
-    char = "v"
+    char = "u"
     description = "Edge with cabinet hinges"
 
     def __init__(self, boxes, settings=None, top=False, angled=False):
@@ -1775,7 +1781,6 @@ class DoveTailJoint(BaseEdge):
                 self.edge(2 * (diffx - l1) + s.size)
 
         self.edge((s.size + leftover) / 2.0 + diffx - l1, tabs=1)
-        self.ctx.translate(*self.ctx.get_current_point())
 
     def margin(self):
         """ """
@@ -1874,6 +1879,16 @@ class FlexEdge(BaseEdge):
 
 class GearSettings(Settings):
 
+    """Settings for rack (and pinion) edge
+Values:
+* absolute_params
+
+ * dimension : 3.0 : modulus of the gear (in mm)
+ * angle : 20.0 : pressure angle
+ * profile_shift : 20.0 : Profile shift
+ * clearance : 0.0 : clearance
+"""
+
     absolute_params = {
         "dimension" : 3.0,
         "angle" : 20.0,
@@ -1886,6 +1901,8 @@ class GearSettings(Settings):
 class RackEdge(BaseEdge):
 
     char = "R"
+
+    description = "Rack (and pinion) Edge"
 
     def __init__(self, boxes, settings):
         super(RackEdge, self).__init__(boxes, settings)
@@ -1906,3 +1923,71 @@ class RackEdge(BaseEdge):
 
     def margin(self):
         return self.settings.dimension * 1.1
+
+class RoundedTriangleEdgeSettings(Settings):
+
+    """Settings for RoundedTriangleEdge
+Values:
+
+* absolute_params
+
+ * height : 150. : height above the wall
+ * radius : 30. : radius of top corner
+ * r_hole : 0. : radius of hole
+
+* relative (in multiples of thickness)
+
+ * outset : 0 : extend the triangle along the length of the edge
+
+"""
+
+    absolute_params = {
+        "height" : 150.,
+        "radius" : 30.,
+        "r_hole" : 2.,
+    }
+
+    relative_params = {
+        "outset" : 0.,
+    }
+
+    def edgeObjects(self, boxes, chars="t", add=True):
+        edges = [RoundedTriangleEdge(boxes, self)]
+        return self._edgeObjects(edges, boxes, chars, add)
+
+class RoundedTriangleEdge(Edge):
+    """Makes an 'edge' with a rounded triangular bumpout and
+       optional hole"""
+    description = "Triangle for handle"
+    char = "t"
+    def __call__(self, length, **kw):
+        length += 2 * self.settings.outset
+        r = self.settings.radius
+        if r >  length / 2:
+            r = length / 2
+        if length-2*r < self.settings.height: # avoid division by zero
+            angle = 90-math.degrees(math.atan(
+                (length-2*r)/(2*self.settings.height)))
+            l = self.settings.height / math.cos(math.radians(90-angle))
+        else:
+            angle = math.degrees(math.atan(
+                2*self.settings.height/(length-2*r)))
+            l = 0.5 * (length-2*r) / math.cos(math.radians(angle))
+        if self.settings.outset:
+            self.polyline(0, -180, self.settings.outset, 90)
+        else:
+            self.corner(-90)
+        if self.settings.r_hole:
+            self.hole(self.settings.height, length/2., self.settings.r_hole)
+        self.corner(90-angle, r, tabs=1)
+        self.edge(l, tabs=1)
+        self.corner(2*angle, r, tabs=1)
+        self.edge(l, tabs=1)
+        self.corner(90-angle, r, tabs=1)
+        if self.settings.outset:
+            self.polyline(0, 90, self.settings.outset, -180)
+        else:
+            self.corner(-90)
+
+    def margin(self):
+        return self.settings.height + self.settings.radius

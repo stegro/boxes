@@ -15,20 +15,19 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from boxes import *
+from boxes.lids import _TopEdge
 
-
-class TypeTray(Boxes):
+class TypeTray(_TopEdge):
     """Type tray - allows only continuous walls"""
 
     ui_group = "Tray"
 
     def __init__(self):
         Boxes.__init__(self)
-        self.buildArgParser("sx", "sy", "h", "hi", "outside", "bottom_edge")
-        self.addSettingsArgs(edges.FingerJointSettings, surroundingspaces=0.5)
-        self.argparser.add_argument(
-            "--closedtop", action="store", type=boolarg, default=False,
-            help="close the box on top")
+        self.addTopEdgeSettings(fingerjoint={"surroundingspaces": 0.5},
+                                roundedtriangle={"outset" : 1})
+        self.buildArgParser("sx", "sy", "h", "hi", "outside", "bottom_edge",
+                            "top_edge")
         self.argparser.add_argument(
             "--gripheight", action="store", type=float, default=30,
             dest="gh", help="height of the grip hole in mm")
@@ -89,36 +88,56 @@ class TypeTray(Boxes):
         hi = self.hi = self.hi or h
         t = self.thickness
 
-        self.open()
 
         # outer walls
         b = self.bottom_edge
-        e1 = b + "fef"
-        e2 = b + "FeF"
-        if self.closedtop:
-            e1 = b + "fFf"
-            e2 = b + "FFF"
+        t1, t2, t3, t4 = self.topEdges(self.top_edge)
+        self.closedtop = self.top_edge in "fF"
 
-        self.rectangularWall(x, h, e1, callback=[self.xHoles, None, self.gripHole],  move="right")
-        self.rectangularWall(y, h, e2, callback=[self.yHoles, ], move="up")
-        self.rectangularWall(y, h, e2, callback=[self.yHoles, ])
-        self.rectangularWall(x, h, e1, callback=[self.xHoles, ], move="left up")
+        # x sides
+
+        self.ctx.save()
+
+        # outer walls
+        self.rectangularWall(x, h, [b, "F", t1, "F"], callback=[self.xHoles, None, self.gripHole],  move="up")
+        self.rectangularWall(x, h, [b, "F", t3, "F"], callback=[self.mirrorX(self.xHoles, x), ], move="up")
 
         # floor
         if b != "e":
             self.rectangularWall(x, y, "ffff", callback=[
-                self.xSlots, self.ySlots], move="right")
-        if self.closedtop:
-            if sameh:
-                self.rectangularWall(x, y, "ffff", callback=[
-                    self.xSlots, self.ySlots], move="right")
-            else:
-                self.rectangularWall(x, y, "ffff", move="right")
+                self.xSlots, self.ySlots], move="up")
 
         # Inner walls
 
         be = "f" if b != "e" else "e"
 
+        for i in range(len(self.sy) - 1):
+            e = [edges.SlottedEdge(self, self.sx, be), "f",
+                 edges.SlottedEdge(self, self.sx[::-1], "e", slots=0.5 * hi), "f"]
+            if self.closedtop and sameh:
+                e = [edges.SlottedEdge(self, self.sx, be), "f",
+                     edges.SlottedEdge(self, self.sx[::-1], "f", slots=0.5 * hi), "f"]
+
+            self.rectangularWall(x, hi, e, move="up")
+
+        # top / lid
+        if self.closedtop and sameh:
+            e = "FFFF" if self.top_edge == "f" else "ffff"
+            self.rectangularWall(x, y, e, callback=[
+                self.xSlots, self.ySlots], move="up")
+        else:
+            self.drawLid(x, y, self.top_edge)
+
+        self.ctx.restore()
+        self.rectangularWall(x, hi, "ffff", move="right only")
+
+        # y walls
+
+        # outer walls
+        self.rectangularWall(y, h, [b, "f", t2, "f"], callback=[self.yHoles, ], move="up")
+        self.rectangularWall(y, h, [b, "f", t4, "f"], callback=[self.mirrorX(self.yHoles, y), ], move="up")
+
+        # inner walls
         for i in range(len(self.sx) - 1):
             e = [edges.SlottedEdge(self, self.sy, be, slots=0.5 * hi),
                  "f", "e", "f"]
@@ -127,15 +146,6 @@ class TypeTray(Boxes):
                      edges.SlottedEdge(self, self.sy[::-1], "f"), "f"]
             self.rectangularWall(y, hi, e, move="up")
 
-        for i in range(len(self.sy) - 1):
-            e = [edges.SlottedEdge(self, self.sx, be), "f",
-                 edges.SlottedEdge(self, self.sx[::-1], "e", slots=0.5 * hi), "f"]
-            if self.closedtop and sameh:
-                e = [edges.SlottedEdge(self, self.sx, be), "f",
-                     edges.SlottedEdge(self, self.sx[::-1], "f", slots=0.5 * hi), "f"]
-                
-            self.rectangularWall(x, hi, e, move="up")
 
-        self.close()
 
 

@@ -112,8 +112,6 @@ When turned by 90°, it can be also used to create a bottle holder."""
         edges[3](h1)
         self.edgeCorner(edges[3], edges[3 + 1], 90)
 
-        self.ctx.stroke()
-
         self.move(overallwidth, overallheight, move)
     
     def render(self):
@@ -124,8 +122,6 @@ When turned by 90°, it can be also used to create a bottle holder."""
 
         th = n * (h + t) - t
         
-        # Initialize canvas
-        self.open()
 
         self.addPart(ShadyEdge(self, None))
 
@@ -170,5 +166,4 @@ When turned by 90°, it can be also used to create a bottle holder."""
         for i in range(n):
             self.parts.disc(h-2*t, move="right")
         
-        self.close()
 

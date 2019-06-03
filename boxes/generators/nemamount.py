@@ -36,7 +36,6 @@ class NemaMount(Boxes):
 
         x = y = h = motor + 2*t
 
-        self.open()
 
         self.rectangularWall(x, y, "ffef", callback=[
             lambda: self.NEMA(self.size, x/2, y/2)], move="right")
@@ -53,5 +52,4 @@ class NemaMount(Boxes):
         self.fingerHolesAt(0.5*t, t, x, 90)
         self.fingerHolesAt(1.5*t+x, t, x, 90)
         self.fingerHolesAt(t, 0.5*t, x, 0)
-        self.close()
 
