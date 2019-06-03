@@ -708,7 +708,7 @@ class Boxes:
         rad = math.atan2(dy, dx)
         self._continueDirection(rad)
 
-    def polyline(self, *args):
+    def polyline(self, length_angle_list):
         """
         Draw multiple connected lines
 
@@ -717,17 +717,23 @@ class Boxes:
         lengths may be a tuple (length, #tabs)
         angles may be tuple (angle, radius)
         """
-        for i, arg in enumerate(args):
+        for i, elem in enumerate(length_angle_list):
             if i % 2:
-                if isinstance(arg, tuple):
-                    self.corner(*arg)
+                if isinstance(elem, tuple):
+                    self.corner(*elem)
                 else:
-                    self.corner(arg)
+                    self.corner(elem)
             else:
-                if isinstance(arg, tuple):
-                    self.edge(*arg)
+                if isinstance(elem, tuple):
+                    self.edge(*elem)
+                if isinstance(elem, list):
+                    callback = elem[1]
+                    self.cc(callback, None)
+                    self.edge(elem[0])
                 else:
-                    self.edge(arg)
+                    self.edge(elem)
+
+
 
     def bedBoltHole(self, length, bedBoltSettings=None, tabs=0):
         """
